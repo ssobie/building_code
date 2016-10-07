@@ -8,7 +8,7 @@ library(raster)
 
 rcm.dir <- '/storage/data/climate/downscale/BCCAQ2/CanRCM4/NAM_22/'
 write.dir <- '/storage/data/climate/downscale/BCCAQ2/CanRCM4/'
-var.name <- 'pr'
+var.name <- 'tas'
 
 lon.i <- -123.968641 
 lat.i <- 49.185618
@@ -63,7 +63,7 @@ file.list <- c(initial.file,past.list,proj.list)
 
 ##Loop over the files, grab the grid cell and stitch
 ##them together as one file
-
+browser()
 flen <- length(file.list)
 data <- c()
 
