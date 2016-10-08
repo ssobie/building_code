@@ -206,6 +206,7 @@ calc.return.periods <- function(data,dates,var.name,rperiod) {
   }
 }
 
+
 ##------------------------------------------------------------------
 ##Data subset
 
@@ -246,6 +247,11 @@ get.variables.subset <- function(tas.data,tasmax.data,tasmin.data,
              uas=uas.mon,vas=vas.mon,snd=snd.mon)
   return(rv)  
 }
+
+
+
+##------------------------------------------------------------------
+##------------------------------------------------------------------
 
 ashrae.monthly.parameters <- function(data.subsets) {
 
@@ -435,13 +441,13 @@ bc.quantiles <- function(data.subsets) {
   pas.sub <- data.subsets$pas
   huss.sub <- data.subsets$huss
 
-  tasmin.025.mon <- quant.fxn(tasmin.sub,as.factor(format(tas.sub$dates,'%m')),pctl=0.025)
-  tasmin.001.mon <- quant.fxn(tasmin.sub,as.factor(format(tas.sub$dates,'%m')),pctl=0.010)
-  tasmax.975.mon <- quant.fxn(tasmin.sub,as.factor(format(tas.sub$dates,'%m')),pctl=0.975)
+  tasmin.025.mon <- quant.fxn(tasmin.sub$data,as.factor(format(tas.sub$dates,'%m')),pctl=0.025)
+  tasmin.001.mon <- quant.fxn(tasmin.sub$data,as.factor(format(tas.sub$dates,'%m')),pctl=0.010)
+  tasmax.975.mon <- quant.fxn(tasmax.sub$data,as.factor(format(tas.sub$dates,'%m')),pctl=0.975)
 
   dew.point.day <- dew.point.temp(pas.sub$data,huss.sub$data)
   wet.bulb.day  <- temp.wet.bulb(tas.sub$data,dew.point.day,pas.sub$data,huss.sub$data)
-  wb.975.mon <- quant.fxn(tasmin.sub,as.factor(format(tas.sub$dates,'%m')),pctl=0.975)
+  wb.975.mon <- quant.fxn(wet.bulb.day,as.factor(format(tas.sub$dates,'%m')),pctl=0.975)
 
   rv <- rbind(tasmin.025.mon,tasmin.001.mon,tasmax.975.mon,wb.975.mon)
   return(rv)
@@ -480,13 +486,114 @@ bc.wind.parameters <- function(data.subsets) {
   return(rv)
 }
 
+##------------------------------------------------------------------
+##------------------------------------------------------------------
 
+get.var.title <- function(var.name) {
+
+  var.title <- switch(var.name,
+                      mon.cool='TASMIN 2.5% \u00B0C',
+                      mon.cold='TASMIN 1.0% \u00B0C',
+                      dry.warm='TASMAX 97.5% \u00B0C',
+                      wet.warm='WET BULB 97.5% \u00B0C',
+                      avg.temp.mon='Average Temp \u00B0C',
+                      sd.temp.mon='St.Dev. Temp \u00B0C',
+                      hdd.sub='Heating Degree Days (10\u00B0C)',    
+                      cdd.sub='Cooling Degree Days (10\u00B0C)',   
+                      cdd.24.sub='Cooling Degree Days (24\u00B0C)',    
+                      avg.pr.mon='Avg Precipitation', 
+                      max.pr.mon='Max Precipitation',
+                      min.pr.mon='Min Precipitation',
+                      sd.pr.mon='St.Dev. Precipitation',  
+                      wb.pctl.mon='Wet Bulb 99.6% \u00B0C',
+                      wb.temp.mon='Mean Conditional Dry Bulb 99.6% \u00B0C', 
+                      db.pctl.mon='Dry Bulb 99.6% \u00B0C',
+                      db.temp.mon='Mean Conditional Wet Bulb 99.6% \u00B0C', 
+                      avg.dtr.mon='Diurnal Temperature Range \u00B0C', 
+                      dtr.temp.mon='Mean Conditional Dry Bulb Range 95% \u00B0C', 
+                      wb.dtr.mon= 'Mean Conditional Wet Bulb Range 95% \u00B0C')
+  return(var.title)
+              
+}
+
+get.var.units <- function(var.name) {
+
+  leg.label <- '\u00B0C'
+  if (grepl("(pr|rx|r9|RP|rp)", var.name))
+    leg.label <- 'mm'
+  if (grepl("(pas|snowdepth)", var.name))
+    leg.label <- 'cm'
+  if (grepl("(tx90|tn10)", var.name))
+    leg.label <- '%'
+  if (grepl("(dd)", var.name))
+    leg.label <- 'Degree days'
+  if (grepl("(fd|cdd|cwd|su|gsl|id|trE|s30)", var.name))
+    leg.label <- 'days'
+
+  return(leg.label)
+}
+
+get.monthly.parameters <- function(past.var.subsets,proj.var.subsets) {
+
+  past.ashrae.variables <- ashrae.monthly.parameters(past.var.subsets)
+  proj.ashrae.variables <- ashrae.monthly.parameters(proj.var.subsets)
+
+  anom.ashrae.variables <- round(proj.ashrae.variables - past.ashrae.variables,1)
+  prct.ashrae.variables <- round((proj.ashrae.variables - past.ashrae.variables)/past.ashrae.variables * 100,1)
+
+  prct.ashrae.variables[is.infinite(prct.ashrae.variables) | is.nan(prct.ashrae.variables)] <- NA
+  prct.ashrae.variables[c(1,2),] <- NA
+
+  past.ashrae.variables <- round(past.ashrae.variables,1)
+  proj.ashrae.variables <- round(proj.ashrae.variables,1)
+
+  ashrae <- list(past=past.ashrae.variables,
+                 proj=proj.ashrae.variables,
+                 anom=anom.ashrae.variables,
+                 prct=prct.ashrae.variables)
+
+  ##--------------------------------------------------------
+  past.bc.variables <- bc.quantiles(past.var.subsets)    
+  proj.bc.variables <- bc.quantiles(proj.var.subsets)    
+
+  anom.bc.variables <- round(proj.bc.variables - past.bc.variables,1)
+  prct.bc.variables <- NA*anom.bc.variables  
+
+  past.bc.variables <- round(past.bc.variables,1)
+  proj.bc.variables <- round(proj.bc.variables,1)
+
+  bc <- list(past=past.bc.variables,
+             proj=proj.bc.variables,
+             anom=anom.bc.variables,
+             prct=prct.bc.variables)
+  rv <- list(ashrae=ashrae,bc=bc)
+  return(rv)  
+}
+
+monthly.table <- function(var.name,data) {
+  data.mon <- cbind(month.abb,data)              
+  var.units <- get.var.units(var.name)
+  var.title <- get.var.title(var.name)
+  data.bottom <- c('Month',paste('Past (',var.units,')',sep=''),
+                 paste('2020s Projection (',var.units,')',sep=''),
+                 paste('2020s Change (',var.units,')',sep=''),
+                 paste('2020s Percent Change (%)',sep=''),                       
+                 paste('2050s Projection (',var.units,')',sep=''),               
+                 paste('2050s Change (',var.units,')',sep=''),
+                 paste('2050s Percent Change (%)',sep=''), 
+                 paste('2080s Projection (',var.units,')',sep=''),               
+                 paste('2080s Change (',var.units,')',sep=''),
+                 paste('2080s Percent Change (%)',sep=''))
+  data.top <- c(var.title,rep(' ',length(data.bottom)-1))                 
+  data.header <- rbind(data.top,data.bottom)
+  var.result <- rbind(data.header,data.mon)
+  return(var.result)
+
+}
 
 ##************************************************************************
 ##************************************************************************
 ##Load Data
-
-
 read.dir <- '/storage/data/climate/downscale/BCCAQ2/CanRCM4/'
 
 dates <- seq(from=as.Date('1950-01-01'),by='day',to=as.Date('2100-12-31'))
@@ -525,20 +632,71 @@ snd.data <- data
 ##-----------------------------------------------------------------------------
 ##Monthly Parameters
 ##Past
-
 past.int <- '1971-2000'
 past.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
                                     pas.data,huss.data,pr.data,uas.data,vas.data,snd.data,
                                     dates,past.int)
-past.mon.variables <- ashrae.monthly.parameters(past.var.subsets)
-past.ann.variables <- ashrae.annual.parameters(past.var.subsets)
-past.hum.variables <- ashrae.humidity.parameters(data.subsets)
-past.dry.variables <- ashrae.annual.dry.temp.parameters(data.subsets)
-past.wind.variables<- ashrae.annual.wind.parameters(data.subsets)
-past.rp.variables  <- ashrae.return.periods(data.subsets,rp=5)
+start.int <- '2011-2040'
+start.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
+                                    pas.data,huss.data,pr.data,uas.data,vas.data,snd.data,
+                                    dates,start.int)
+start.mon <- get.monthly.parameters(past.var.subsets,start.var.subsets)
+
+middle.int <- '2041-2070'
+middle.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
+                                    pas.data,huss.data,pr.data,uas.data,vas.data,snd.data,
+                                    dates,middle.int)
+middle.mon <- get.monthly.parameters(past.var.subsets,middle.var.subsets)
+
+end.int <- '2071-2100'
+end.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
+                                    pas.data,huss.data,pr.data,uas.data,vas.data,snd.data,
+                                    dates,end.int)
+end.mon <- get.monthly.parameters(past.var.subsets,end.var.subsets)
+
+##ASHRAE Parameters
+ashrae.mon.vars <- c('avg.temp.mon','sd.temp.mon','hdd.sub','cdd.sub','cdd.24.sub',
+                     'avg.pr.mon','max.pr.mon','min.pr.mon','sd.pr.mon',
+                     'wb.pctl.mon','wb.temp.mon','db.pctl.mon','db.temp.mon',
+                     'avg.dtr.mon','dtr.temp.mon','wb.dtr.mon')
+
+ashrae.len <- nrow(start.mon$ashrae$past)
+ashrae.vars <- c()              
+for (i in 1:ashrae.len) {
+    ashrae.temp <- cbind(start.mon$ashrae$past[i,],start.mon$ashrae$proj[i,],start.mon$ashrae$anom[i,],start.mon$ashrae$prct[i,],
+                                           middle.mon$ashrae$proj[i,],middle.mon$ashrae$anom[i,],middle.mon$ashrae$prct[i,],
+                                           end.mon$ashrae$proj[i,],end.mon$ashrae$anom[i,],end.mon$ashrae$prct[i,])
+    ashrae.formatted <- monthly.table(ashrae.mon.vars[i],ashrae.temp)                                           
+    ashrae.vars <- rbind(ashrae.vars,ashrae.formatted)
+}
+browser()
 
 
-proj.int <- '2041-2070'
+##BC Parameters
+bc.mon.vars <- c('mon.cool','mon.cold','dry.warm','wet.warm')
+bc.len <- nrow(start.mon$bc$past)
+bc.vars <- c()              
+for (i in 1:bc.len) {
+    bc.temp <- cbind(start.mon$bc$past[i,],start.mon$bc$proj[i,],start.mon$bc$anom[i,],start.mon$bc$prct[i,],
+                                           middle.mon$bc$proj[i,],middle.mon$bc$anom[i,],middle.mon$bc$prct[i,],
+                                           end.mon$bc$proj[i,],end.mon$bc$anom[i,],end.mon$bc$prct[i,])
+    bc.formatted <- monthly.table(bc.mon.vars[i],bc.temp)                                           
+    bc.vars <- rbind(bc.vars,bc.formatted)
+}
+
+
+browser()
+
+
+past.hum.variables <- ashrae.humidity.parameters(past.var.subsets)
+past.pr.variables  <- ashrae.annual.precip.parameters(past.var.subsets)
+past.dry.variables <- ashrae.annual.dry.temp.parameters(past.var.subsets)
+past.wind.variables<- ashrae.annual.wind.parameters(past.var.subsets)
+past.rp.variables  <- ashrae.return.periods(past.var.subsets,rp=5)
+
+browser()
+
+
 proj.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
                                     pas.data,huss.data,pr.data,dates,proj.int)
 proj.mon.variables <- ashrae.monthly.parameters(proj.var.subsets)
