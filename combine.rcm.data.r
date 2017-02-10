@@ -8,8 +8,12 @@ library(raster)
 
 rcm.dir <- '/storage/data/climate/downscale/BCCAQ2/CanRCM4/NAM_22/'
 write.dir <- '/storage/data/climate/downscale/BCCAQ2/CanRCM4/'
-var.name <- 'tas'
+var.list <- 'psl' ##c('tasmin','uas','vas','ps','huss','snd','snc')
 
+cells <- c(76,150)
+
+for (var.name in var.list) {
+print(var.name)
 lon.i <- -123.968641 
 lat.i <- 49.185618
 
@@ -43,8 +47,8 @@ dat <- rasterize(spdf,data)
 dat <- subset(dat,2:2)
 
 geod <- sqrt((lon - lon.i)^2 + (lat - lat.i)^2)
-coord.ix <- which(geod==min(geod),arr.ind=TRUE)
-
+##coord.ix <- which(geod==min(geod),arr.ind=TRUE)
+coord.ix <- cells
 
 ##----------------------------------------------
 hist.ysts <- seq(1951,2001,5)
@@ -63,7 +67,7 @@ file.list <- c(initial.file,past.list,proj.list)
 
 ##Loop over the files, grab the grid cell and stitch
 ##them together as one file
-browser()
+
 flen <- length(file.list)
 data <- c()
 
@@ -86,8 +90,8 @@ if (grepl('(tasmax|tasmin)',var.name)) {
 }
 
 
-save(data,file=paste(write.dir,var.name,'_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+save(data,file=paste(write.dir,var.name,'_NANAIMO_',cells[1],'_',cells[2],'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 
 
-
+}
 

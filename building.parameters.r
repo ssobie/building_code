@@ -492,33 +492,50 @@ bc.wind.parameters <- function(data.subsets) {
 get.var.title <- function(var.name) {
 
   var.title <- switch(var.name,
-                      mon.cool='TASMIN 2.5% \u00B0C',
-                      mon.cold='TASMIN 1.0% \u00B0C',
-                      dry.warm='TASMAX 97.5% \u00B0C',
-                      wet.warm='WET BULB 97.5% \u00B0C',
-                      avg.temp.mon='Average Temp \u00B0C',
-                      sd.temp.mon='St.Dev. Temp \u00B0C',
-                      hdd.sub='Heating Degree Days (10\u00B0C)',    
-                      cdd.sub='Cooling Degree Days (10\u00B0C)',   
-                      cdd.24.sub='Cooling Degree Days (24\u00B0C)',    
+                      mon.cool='TASMIN 2.5% degC',
+                      mon.cold='TASMIN 1.0% degC',
+                      dry.warm='TASMAX 97.5% degC',
+                      wet.warm='WET BULB 97.5% degC',
+                      avg.temp.mon='Average Temp degC',
+                      sd.temp.mon='St.Dev. Temp degC',
+                      hdd.sub='Heating Degree Days (10 degC)',    
+                      cdd.sub='Cooling Degree Days (10 degC)',   
+                      cdd.24.sub='Cooling Degree Days (24 degC)',    
                       avg.pr.mon='Avg Precipitation', 
                       max.pr.mon='Max Precipitation',
                       min.pr.mon='Min Precipitation',
                       sd.pr.mon='St.Dev. Precipitation',  
-                      wb.pctl.mon='Wet Bulb 99.6% \u00B0C',
-                      wb.temp.mon='Mean Conditional Dry Bulb 99.6% \u00B0C', 
-                      db.pctl.mon='Dry Bulb 99.6% \u00B0C',
-                      db.temp.mon='Mean Conditional Wet Bulb 99.6% \u00B0C', 
-                      avg.dtr.mon='Diurnal Temperature Range \u00B0C', 
-                      dtr.temp.mon='Mean Conditional Dry Bulb Range 95% \u00B0C', 
-                      wb.dtr.mon= 'Mean Conditional Wet Bulb Range 95% \u00B0C')
-  return(var.title)
-              
+                      wb.pctl.mon='Wet Bulb 99.6% degC',
+                      wb.temp.mon='Mean Conditional Dry Bulb 99.6% degC', 
+                      db.pctl.mon='Dry Bulb 99.6% degC',
+                      db.temp.mon='Mean Conditional Wet Bulb 99.6% degC', 
+                      avg.dtr.mon='Diurnal Temperature Range degC', 
+                      dtr.temp.mon='Mean Conditional Dry Bulb Range 95% degC', 
+                      wb.dtr.mon= 'Mean Conditional Wet Bulb Range 95% degC',
+                      tasmin.025.mon='Cold Design Temperature 2.5% degC',       
+                      tasmin.001.mon='Cold Design Temperature 1.0% degC',
+                      tasmax.975.mon='Warm Design Temperature 97.5% degC',
+                      wb.975.mon='Warm Wet Bulb Design Temperature 97.5% degC',
+
+                      dew.point.low='Cold Dew Point Temperature 0.4% degC',
+                      hum.ratio.low='Cold Humidity Ratio 0.4%',
+                      dew.mcdb.low='Mean Conditional Dry Bulb (Dew Point 0.4%) degC',
+                      db.mcwb.ann='Mean Conditional Wet Bulb (Dry Bulb 0.4%) degC',
+                      wb.evap.ann='Evaporation Wet Bulb ',
+                      wb.mcdb.ann,
+                      dew.point.high,
+                      hum.ratio.high,
+                      dew.mcdb.high,
+                      enth.ann,
+                      enth.mcdb.high,
+                      wb.max.ann)
+)
+  return(var.title)              
 }
 
 get.var.units <- function(var.name) {
 
-  leg.label <- '\u00B0C'
+  leg.label <- 'degC'
   if (grepl("(pr|rx|r9|RP|rp)", var.name))
     leg.label <- 'mm'
   if (grepl("(pas|snowdepth)", var.name))
@@ -599,33 +616,33 @@ read.dir <- '/storage/data/climate/downscale/BCCAQ2/CanRCM4/'
 dates <- seq(from=as.Date('1950-01-01'),by='day',to=as.Date('2100-12-31'))
 flag <- grep('*-02-29',dates)
 dates <- dates[-flag]
-
-load(paste(read.dir,'tas_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+cell <- '76_150'
+load(paste(read.dir,'tas_NANAIMO_',cell,'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 tas.data <- data - 273
 
-load(paste(read.dir,'tasmax_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+load(paste(read.dir,'tasmax_NANAIMO_',cell,'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 tasmax.data <- data
 
-load(paste(read.dir,'tasmin_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+load(paste(read.dir,'tasmin_NANAIMO_',cell,'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 tasmin.data <- data
 
-load(paste(read.dir,'pr_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+load(paste(read.dir,'pr_NANAIMO_',cell,'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 pr.data <- data
 pr.data[pr.data < 0.1] <- 0
 
-load(paste(read.dir,'ps_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+load(paste(read.dir,'ps_NANAIMO_',cell,'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 pas.data <- data/1000
 
-load(paste(read.dir,'huss_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+load(paste(read.dir,'huss_NANAIMO_',cell,'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 huss.data <- data
 
-load(paste(read.dir,'uas_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+load(paste(read.dir,'uas_NANAIMO_',cell,'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 uas.data <- data
 
-load(paste(read.dir,'vas_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+load(paste(read.dir,'vas_NANAIMO_',cell,'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 vas.data <- data
 
-load(paste(read.dir,'snd_NANAIMO_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+load(paste(read.dir,'snd_NANAIMO_',cell,'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 snd.data <- data
 
 
@@ -653,8 +670,8 @@ end.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
                                     pas.data,huss.data,pr.data,uas.data,vas.data,snd.data,
                                     dates,end.int)
 end.mon <- get.monthly.parameters(past.var.subsets,end.var.subsets)
-
-##ASHRAE Parameters
+ 
+##ASHRAE Monthly Parameters
 ashrae.mon.vars <- c('avg.temp.mon','sd.temp.mon','hdd.sub','cdd.sub','cdd.24.sub',
                      'avg.pr.mon','max.pr.mon','min.pr.mon','sd.pr.mon',
                      'wb.pctl.mon','wb.temp.mon','db.pctl.mon','db.temp.mon',
@@ -669,11 +686,16 @@ for (i in 1:ashrae.len) {
     ashrae.formatted <- monthly.table(ashrae.mon.vars[i],ashrae.temp)                                           
     ashrae.vars <- rbind(ashrae.vars,ashrae.formatted)
 }
-browser()
 
 
-##BC Parameters
-bc.mon.vars <- c('mon.cool','mon.cold','dry.warm','wet.warm')
+my.writedir <- '/storage/data/projects/rci/building_code/'
+write.table(ashrae.vars,file=paste(my.writedir,'ashrae.monthly.variables.nanaimo.building.code.csv',sep=''),
+            sep=',',quote=FALSE,col.name=FALSE,row.name=FALSE)
+
+##------------------------------------
+##BC Monthly Parameters
+bc.mon.vars <- c("tasmin.025.mon","tasmin.001.mon","tasmax.975.mon","wb.975.mon")
+
 bc.len <- nrow(start.mon$bc$past)
 bc.vars <- c()              
 for (i in 1:bc.len) {
@@ -685,7 +707,9 @@ for (i in 1:bc.len) {
 }
 
 
-browser()
+my.writedir <- '/storage/data/projects/rci/building_code/'
+write.table(bc.vars,file=paste(my.writedir,'bc.monthly.variables.nanaimo.building.code.csv',sep=''),
+            sep=',',quote=FALSE,col.name=FALSE,row.name=FALSE)
 
 
 past.hum.variables <- ashrae.humidity.parameters(past.var.subsets)
