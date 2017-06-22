@@ -29,11 +29,17 @@ read.data.subset <- function(data,dates,interval) {
   return(rv)
 }
 
-get.gcm.data <- function(var.name,gcm,gcm.file,cell.subset) {
+get.gcm.data <- function(var.name,gcm,gcm.file,lon.c,lat.c) {
 
   print(gcm.file)
   nc <- nc_open(gcm.file)
-  gcm.data <- ncvar_get(nc,start=c(cell.subset,1),count=c(1,1,-1))
+  lon <- ncvar_get(nc,'lon')
+  lon <- ((lon + 180) %% 360) - 180
+  lat <- ncvar_get(nc,'lat')
+  
+  lon.ix <- which.min(abs(lon.c-lon))
+  lat.ix <- which.min(abs(lat.c-lat))
+  gcm.data <- ncvar_get(nc,start=c(lon.ix,lat.ix,1),count=c(1,1,-1))
   gcm.time <- get.time.series(nc)
   gcm.subset <- read.data.subset(gcm.data,gcm.time,'1951-2100')
   time.subset <- as.Date(read.data.subset(gcm.time,gcm.time,'1951-2100'))
@@ -51,18 +57,28 @@ get.gcm.data <- function(var.name,gcm,gcm.file,cell.subset) {
   return(rv)
 }
 
-get.bccaq.data <- function(var.name,gcm,scenario,data.dir,cell.subset) {
+get.bccaq.data <- function(var.name,gcm,scenario,data.dir,lon.c,lat.c) {
 
    gcm.files <- list.files(path=data.dir,
                            pattern=paste(var.name,'_day_BCCAQ_',gcm,'_',scenario,sep=''),full.name=TRUE)
+
    print(gcm.files)
    past.file <- gcm.files[grep('1951-2000',gcm.files)]
    proj.file <- gcm.files[grep('2001-2100',gcm.files)]
    nc.past <- nc_open(past.file)
    nc.proj <- nc_open(proj.file)
-   past.subset <- ncvar_get(nc.past,start=c(cell.subset,1),count=c(1,1,-1))
+
+   lon <- ncvar_get(nc.past,'lon')
+   lon <- ((lon + 180) %% 360) - 180
+   lat <- ncvar_get(nc.past,'lat')
+  
+   lon.ix <- which.min(abs(lon.c-lon))
+   lat.ix <- which.min(abs(lat.c-lat))
+
+
+   past.subset <- ncvar_get(nc.past,start=c(lon.ix,lat.ix,1),count=c(1,1,-1))
    past.time <- get.time.series(nc.past)
-   proj.subset <- ncvar_get(nc.proj,start=c(cell.subset,1),count=c(1,1,-1))
+   proj.subset <- ncvar_get(nc.proj,start=c(lon.ix,lat.ix,1),count=c(1,1,-1))
    proj.time <- get.time.series(nc.proj)
    comb.subset <- c(past.subset,proj.subset)
    time.subset <- as.Date(c(past.time,proj.time))
@@ -75,38 +91,62 @@ get.bccaq.data <- function(var.name,gcm,scenario,data.dir,cell.subset) {
 }
 
 
+gather.gcm.data <- function(gcm,lon.c,lat.c,scenario) {
+
+  gcm.dir <- paste('/storage/data/climate/downscale/CMIP5/building_code/',gcm,sep='')
+
+  psl.file <- list.files(path=gcm.dir,pattern=paste0('psl_day_',gcm),full.name=TRUE)
+  psl.data <- get.gcm.data(var.name='psl',gcm=gcm,gcm.file=psl.file,lon.c,lat.c)
+
+  huss.file <- list.files(path=gcm.dir,pattern=paste0('huss_day_',gcm),full.name=TRUE)
+  huss.data <- get.gcm.data(var.name='huss',gcm=gcm,gcm.file=huss.file,lon.c,lat.c)
+
+  uas.file <- list.files(path=gcm.dir,pattern=paste0('uas_day_',gcm),full.name=TRUE)
+  uas.data <- get.gcm.data(var.name='uas',gcm=gcm,gcm.file=uas.file,lon.c,lat.c)
+
+  vas.file <- list.files(path=gcm.dir,pattern=paste0('vas_day_',gcm),full.name=TRUE)
+  vas.data <- get.gcm.data(var.name='vas',gcm=gcm,gcm.file=vas.file,lon.c,lat.c)
+
+  rv <- list(psl=psl.data,
+             huss=huss.data,
+             uas=uas.data,
+             vas=vas.data)
+  return(rv)
+         
+}
+
+
+##BCCAQ Data
+gather.bccaq.data <- function(gcm,lon.c,lat.c,scenario) {
+
+  bccaq.dir <- paste('/storage/data/scratch/ssobie/bccaq_gcm_bc_subset/',gcm,sep='')
+
+  tasmax.data <- get.bccaq.data('tasmax',gcm,scenario,bccaq.dir,lon.c,lat.c)
+  tasmin.data <- get.bccaq.data('tasmin',gcm,scenario,bccaq.dir,lon.c,lat.c)
+  tas.data <- tasmax.data
+  tas.data$data <- (tasmax.data$data+tasmin.data$data)/2
+  pr.data <- get.bccaq.data('pr',gcm,scenario,bccaq.dir,lon.c,lat.c)
+
+  rv <- list(tasmax=tasmax.data,        
+             tasmin=tasmin.data,
+             tas=tas.data,
+             pr=pr.data)
+  return(rv)
+}
 
 ##************************************************************************
 ##************************************************************************
 ##Load GCM BasedData
 
-cell <- c(85,50)
-gcm <- 'CanESM2'
-scenario <- 'rcp85'
+gcm <- 'ACCESS1-0'
+scenario <- 'rcp45'
 
-gcm.dir <- paste('/storage/data/climate/downscale/BCCAQ2/CMIP5/',gcm,sep='')
-
-psl.file <- paste(gcm.dir,'/psl_day_',gcm,'_historical+rcp85_r1i1p1_18500101-21001231.nc',sep='')
-psl.data <- get.gcm.data(var.name='psl',gcm=gcm,gcm.file=psl.file,cell)
-
-huss.file <- paste(gcm.dir,'/huss_day_',gcm,'_historical+rcp85_r1i1p1_18500101-21001231.nc',sep='')
-huss.data <- get.gcm.data(var.name='huss',gcm=gcm,gcm.file=huss.file,cell)
-
-uas.file <- paste(gcm.dir,'/uas_day_',gcm,'_historical+rcp85_r1i1p1_18500101-21001231.nc',sep='')
-uas.data <- get.gcm.data(var.name='uas',gcm=gcm,gcm.file=uas.file,cell)
-
-vas.file <- paste(gcm.dir,'/vas_day_',gcm,'_historical+rcp85_r1i1p1_18500101-21001231.nc',sep='')
-vas.data <- get.gcm.data(var.name='vas',gcm=gcm,gcm.file=vas.file,cell)
+lon.c <- -123.969357
+lat.c <- 49.184737
 
 ##BCCAQ Data
-cell <- c(193,15)
-bccaq.dir <- paste('/storage/data/scratch/ssobie/bccaq_gcm_bc_subset/',gcm,sep='')
+bccaq.data <- gather.bccaq.data(gcm,lon.c,lat.c,scenario)
 
-tasmax.data <- get.bccaq.data('tasmax',gcm,scenario,bccaq.dir,cell)
-tasmin.data <- get.bccaq.data('tasmin',gcm,scenario,bccaq.dir,cell)
-tas.data <- tasmax.data
-tas.data$data <- (tasmax.data$data+tasmin.data$data)/2
-pr.data <- get.bccaq.data('pr',gcm,scenario,bccaq.dir,cell)
-
-
+##GCM other variables
+gcm.data <- gather.gcm.data(gcm,lon.c,lat.c,scenario)
 
