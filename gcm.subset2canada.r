@@ -46,7 +46,7 @@ make.subsets <- function(write.dir) {
 
   files <- list.files(path=paste(write.dir,'grouptmp',sep=''))
   len <- length(files)
-
+browser()
   for (i in 1:len) {
     file <- files[i]
     era <- grepl('historical',file)
@@ -55,6 +55,7 @@ make.subsets <- function(write.dir) {
     time.file <- paste(write.dir,'timetmp/time_subset_',file,sep='')
     subset.to.canada(input.file,space.file)
     slice.by.time(space.file,time.file,gcm,era)   
+    ##slice.by.time(input.file,time.file,gcm,era)   
   }
 }
 
@@ -100,21 +101,25 @@ group.files <- function(file.list,matrix.subset,write.dir,base.dir,scenarios) {
 base.dir <- '/storage/data/climate/downscale/CMIP5/incoming/'
 
 ##Make sure the GCM and Centre names are paired in the same order below
-gcms <- 'CSIRO-Mk3-6-0'
+gcms <- 'MPI-ESM-MR'
 
-variable.list <- c('huss','psl','uas','vas')
+variable.list <- c('pr','tasmax','tasmin')
 run <- 'r1i1p1'
 
 full.list <- c('Model','Scenario','Run','Variable','Start','End')
 scen.list <- c('historical','rcp26','rcp45','rcp85')
 
-write.dir <- '/storage/data/climate/downscale/CMIP5/building_code/'
+##write.dir <- '/storage/data/climate/downscale/CMIP5/building_code/'
+
+##write.dir <- '/storage/data/climate/downscale/BCCAQ2+PRISM/CMIP5/global/'
+write.dir <- '/storage/data/climate/downscale/BCCAQ2/CMIP5/'
+
 for (gcm in gcms) {
   for (variable in variable.list) {
     ##PR files
-    pr.files <- list.files(path=paste(base.dir,gcm,'/',variable,sep=''),pattern=paste(variable,'_day',sep=''),recursive=TRUE)
+    pr.files <- list.files(path=paste(base.dir,gcm,'/download',sep=''),pattern=paste(variable,'_day',sep=''),recursive=TRUE)
     plen <- length(pr.files)
-    if (plen!=0) {
+    if (1==1) { ##(plen!=0) {
        ##print(pr.files)
        years <- unlist(regmatches(pr.files,gregexpr('[0-9]{8}-[0-9]{8}',pr.files)))
        yst <- substr(years,1,4)
@@ -129,8 +134,8 @@ for (gcm in gcms) {
        file.select <- pr.files[test.match]
        matrix.subset <- file.matrix[test.match,]
        print(file.select)
-       gcm.dir <- paste0(base.dir,gcm,'/',variable,'/')
-       group.files(file.select,matrix.subset,write.dir,gcm.dir,scen.list)    
+       gcm.dir <- paste0(base.dir,gcm,'/download/')
+       ##group.files(file.select,matrix.subset,write.dir,gcm.dir,scen.list)    
    
        make.subsets(write.dir)
 

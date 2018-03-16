@@ -115,9 +115,11 @@ dd <- function(tmean,tbase) {
   return(round(days))
 }
 cdd.24.fxn  <- function(data,fac){tapply(data,fac, dd, tbase=24)}                            ##Cooling degree days
+cdd.18.3.fxn  <- function(data,fac){tapply(data,fac,dd, tbase=18.3)}                           ##Cooling degree days below 18.3
 cdd.fxn  <- function(data,fac){tapply(data,fac, dd, tbase=10)}                            ##Cooling degree days
 hdd.fxn  <- function(data,fac){tapply(-data,fac,dd, tbase=-10)}                           ##Heating degree days below 10
 hdd.18.fxn  <- function(data,fac){tapply(-data,fac,dd, tbase=-18)}                           ##Heating degree days below 18
+hdd.18.3.fxn  <- function(data,fac){tapply(-data,fac,dd, tbase=-18.3)}                           ##Heating degree days below 18.3
 
 pctl.fxn <- function(data,fac,pctl){tapply(data,fac,quantile,pctl,na.rm=T)}
 
@@ -138,7 +140,7 @@ conditional.mon.fxn <- function(main,second,fac,pctl) {
 ##----------------------------------------------------------------------
 ##Return Periods
 calc.return.periods <- function(data,dates,var.name,rperiod) {
-
+  
   yearly.fac <- as.factor(format(dates,'%Y'))
  
   if (sum(is.na(data)) == length(data)) {
@@ -149,7 +151,7 @@ calc.return.periods <- function(data,dates,var.name,rperiod) {
                  tasmin=min,
                  pr=max,
                  snd=max)
-
+                 
     ts.yearly <- tapply(data,list(yearly.fac),fx,na.rm=T)
     inf.flag <- is.infinite(ts.yearly)
     ts.yearly[inf.flag] <- NA
@@ -168,6 +170,14 @@ calc.return.periods <- function(data,dates,var.name,rperiod) {
         ts.to.fit <- jitter(ts.to.fit,amount=3)
     }
 
+    if (var.name=='snd') {
+      flag <- ts.to.fit == 0
+      ts.to.fit[flag] <- jitter(mean(ts.to.fit[!flag]),amount=2)
+      ts.to.fit[ts.to.fit<0] <- 1
+      print(ts.to.fit)
+
+    }      
+        
     ts.fit <- fevd(ts.to.fit,type='GEV')
     ts.old <- gev.fit(ts.to.fit,show=FALSE)
 
@@ -177,7 +187,8 @@ calc.return.periods <- function(data,dates,var.name,rperiod) {
 
     ##This gives a 3 element vector with lower bound, rp value and upper bound
     rv <- as.numeric(ts.rp)
-
+    print(rv)
+    
     if (var.name=='tasmin') {
       rv <- -as.numeric(ts.rp)
     }

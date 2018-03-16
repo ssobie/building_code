@@ -37,6 +37,46 @@ fill.series <- function(data,dates,template) {
   return(rv)
 }
 
+get.gcm.data <- function(var.name,gcm.list,data.dir) {
+
+  lon.i <- -123.968641
+  lat.i <- 49.185618
+
+  avg.subset <- vector(length=length(gcm.list),mode='list')
+  time.subset <- vector(length=length(gcm.list),mode='list')
+     for (i in seq_along(gcm.list)) {
+         gcm <- gcm.list[i]
+         gcm.files <- list.files(path=paste(data.dir,gcm,sep=''),
+                                 pattern=paste(var.name,'_day_',sep=''),full.name=TRUE)
+         print(gcm.files)                               
+         past.file <- gcm.files[grep('rcp85',gcm.files)]
+
+         nc.past <- nc_open(past.file)       
+         lon <- ncvar_get(nc.past,'lon')
+         lon <- ((lon + 180) %% 360) - 180
+         lat <- ncvar_get(nc.past,'lat')
+         lon.ix <- which.min(abs(lon.i-lon))
+         lat.ix <- which.min(abs(lat.i-lat))
+
+         past.subset <- ncvar_get(nc.past,var.name,start=c(lon.ix,lat.ix,1),count=c(1,1,-1))
+         if (grepl('tas',var.name)) {
+            past.subset <- past.subset-273.15
+         }
+         if (grepl('pr',var.name)) {
+            past.subset <- past.subset*86400
+         }
+
+         past.time <- get.time.series(nc.past)
+         avg.subset[[i]] <- past.subset
+         time.subset[[i]] <- past.time
+         nc_close(nc.past)
+   }
+
+  rv <- list(data=avg.subset,time=time.subset)
+  return(rv)
+}
+
+
 get.bccaq.data <- function(var.name,gcm.list,data.dir,cell.subset) {
 
   avg.subset <- vector(length=length(gcm.list),mode='list')
@@ -125,6 +165,62 @@ get.rcm.seasonal <- function(var.name,data.rcm,rcm.dates) {
    return(rv)              
 }
 
+gcm.or.rcm.data <- function(pr.data,tasmax.data,tasmin.data,tas.data) {
+
+
+   bccaq.1980s <- mapply(get.data.subset,tasmax.data$time,tasmax.data$time,MoreArgs=list('1971-2000'))
+   bccaq.2050s <- mapply(get.data.subset,tasmax.data$time,tasmax.data$time,MoreArgs=list('2041-2070'))
+
+   tas.1980s <- mapply(get.data.subset,tas.data,tasmax.data$time,MoreArgs=list('1971-2000'))
+   tas.2020s <- mapply(get.data.subset,tas.data,tasmax.data$time,MoreArgs=list('2011-2040'))
+   tas.2050s <- mapply(get.data.subset,tas.data,tasmax.data$time,MoreArgs=list('2041-2070'))
+   tas.2080s <- mapply(get.data.subset,tas.data,tasmax.data$time,MoreArgs=list('2071-2099'))
+
+   tasmax.1980s <- mapply(get.data.subset,tasmax.data$data,tasmax.data$time,MoreArgs=list('1971-2000'))
+   tasmax.2020s <- mapply(get.data.subset,tasmax.data$data,tasmax.data$time,MoreArgs=list('2011-2040'))
+   tasmax.2050s <- mapply(get.data.subset,tasmax.data$data,tasmax.data$time,MoreArgs=list('2041-2070'))
+   tasmax.2080s <- mapply(get.data.subset,tasmax.data$data,tasmax.data$time,MoreArgs=list('2071-2099'))
+
+   pr.1980s <- mapply(get.data.subset,pr.data$data,tasmax.data$time,MoreArgs=list('1971-2000'))
+   pr.2020s <- mapply(get.data.subset,pr.data$data,tasmax.data$time,MoreArgs=list('2011-2040'))
+   pr.2050s <- mapply(get.data.subset,pr.data$data,tasmax.data$time,MoreArgs=list('2041-2070'))
+   pr.2080s <- mapply(get.data.subset,pr.data$data,tasmax.data$time,MoreArgs=list('2071-2099'))
+
+   tas.clim.1980s <- unlist(lapply(tas.1980s,mean,na.rm=T))
+   tas.clim.2050s <- unlist(lapply(tas.2050s,mean,na.rm=T))
+   tas.anoms <- tas.clim.2050s - tas.clim.1980s
+
+   pr.clim.1980s <- unlist(lapply(pr.1980s,function(x){mean(x[x>0],na.rm=T)}))
+   pr.clim.2050s <- unlist(lapply(pr.2050s,function(x){mean(x[x>0],na.rm=T)}))
+   pr.anoms <- (pr.clim.2050s - pr.clim.1980s)/pr.clim.1980s*100
+
+   tas.seas.1980s <- mapply(get.season.data,tas.1980s,bccaq.1980s,'mean')
+   tas.seas.2050s <- mapply(get.season.data,tas.2050s,bccaq.2050s,'mean')
+   pr.seas.1980s <- mapply(get.season.data,pr.1980s,bccaq.1980s,'sum')
+   pr.seas.2050s <- mapply(get.season.data,pr.2050s,bccaq.2050s,'sum')
+
+   tasmax.seasmax.1980s <- mapply(get.season.data,tasmax.1980s,bccaq.1980s,'max')
+   tasmax.seasmax.2050s <- mapply(get.season.data,tasmax.2050s,bccaq.2050s,'max')
+
+   pr.seasmax.1980s <- mapply(get.season.data,pr.1980s,bccaq.1980s,'max')
+   pr.seasmax.2050s <- mapply(get.season.data,pr.2050s,bccaq.2050s,'max')
+
+   tas.seas.anoms <- tas.seas.2050s - tas.seas.1980s
+   pr.seas.anoms <- (pr.seas.2050s - pr.seas.1980s)/pr.seas.1980s*100
+
+   tasmax.seasmax.anoms <- tasmax.seasmax.2050s - tasmax.seasmax.1980s
+   pr.seasmax.anoms <- (pr.seasmax.2050s - pr.seasmax.1980s)/pr.seasmax.1980s*100
+
+
+   rv <- list(tas.seas.1980s=tas.seas.1980s,tas.seas.2050s=tas.seas.2050s,
+              pr.seas.1980s=pr.seas.1980s,pr.seas.2050s=pr.seas.2050s,
+              tasmax.seasmax.1980s=tasmax.seasmax.1980s,tasmax.seasmax.2050s=tasmax.seasmax.2050s,
+              pr.seasmax.1980s=pr.seasmax.1980s,pr.seasmax.2050s=pr.seasmax.2050s,
+              tas.seas.anoms=tas.seas.anoms,pr.seas.anoms=pr.seas.anoms,
+              tasmax.seasmax.anoms=tasmax.seasmax.anoms,pr.seasmax.anoms=pr.seasmax.anoms)
+   return(rv)
+}
+
 
 ##************************************************************************
 ##************************************************************************
@@ -174,7 +270,7 @@ for (i in 1:rlen) {
 ##---------------------------------------------------------------------
 ##Load BCCAQ Data
 data.dir <- '/storage/data/scratch/ssobie/bccaq_gcm_nanaimo_subset/'
-
+gcm.dir <- '/storage/data/climate/downscale/BCCAQ2/CMIP5/'
 gcm.list <- c('ACCESS1-0',
               'CanESM2',
               'CCSM4',
@@ -192,53 +288,23 @@ cell.subset <- list(c(3,2),c(3,3),c(3,4),c(3,5),
                     c(4,2),c(4,3),c(4,4),
                     c(5,2),c(5,3))
 
+if (1==0) {
 pr.data <- get.bccaq.data('pr',gcm.list,data.dir,cell.subset)
 tasmax.data <- get.bccaq.data('tasmax',gcm.list,data.dir,cell.subset)
 tasmin.data <- get.bccaq.data('tasmin',gcm.list,data.dir,cell.subset)
 tas.data <- mapply(FUN=function(x,y){(x+y)/2},tasmax.data$data,tasmin.data$data)
 
-bccaq.1980s <- mapply(get.data.subset,tasmax.data$time,tasmax.data$time,MoreArgs=list('1971-2000'))
-bccaq.2050s <- mapply(get.data.subset,tasmax.data$time,tasmax.data$time,MoreArgs=list('2041-2070'))
+bccaq.vars <- gcm.or.rcm.data(pr.data,tasmax.data,tasmin.data,tas.data)
 
-tas.1980s <- mapply(get.data.subset,tas.data,tasmax.data$time,MoreArgs=list('1971-2000'))
-tas.2020s <- mapply(get.data.subset,tas.data,tasmax.data$time,MoreArgs=list('2011-2040'))
-tas.2050s <- mapply(get.data.subset,tas.data,tasmax.data$time,MoreArgs=list('2041-2070'))
-tas.2080s <- mapply(get.data.subset,tas.data,tasmax.data$time,MoreArgs=list('2071-2099'))
+##GCM Data
+gcm.pr.data <- get.gcm.data('pr',gcm.list,gcm.dir)
+gcm.tasmax.data <- get.gcm.data('tasmax',gcm.list,gcm.dir)
+gcm.tasmin.data <- get.gcm.data('tasmin',gcm.list,gcm.dir)
+gcm.tas.data <- mapply(FUN=function(x,y){(x+y)/2},gcm.tasmax.data$data,gcm.tasmin.data$data)
 
-tasmax.1980s <- mapply(get.data.subset,tasmax.data$data,tasmax.data$time,MoreArgs=list('1971-2000'))
-tasmax.2020s <- mapply(get.data.subset,tasmax.data$data,tasmax.data$time,MoreArgs=list('2011-2040'))
-tasmax.2050s <- mapply(get.data.subset,tasmax.data$data,tasmax.data$time,MoreArgs=list('2041-2070'))
-tasmax.2080s <- mapply(get.data.subset,tasmax.data$data,tasmax.data$time,MoreArgs=list('2071-2099'))
+gcm.vars <- gcm.or.rcm.data(gcm.pr.data,gcm.tasmax.data,gcm.tasmin.data,gcm.tas.data)
 
-pr.1980s <- mapply(get.data.subset,pr.data$data,tasmax.data$time,MoreArgs=list('1971-2000'))
-pr.2020s <- mapply(get.data.subset,pr.data$data,tasmax.data$time,MoreArgs=list('2011-2040'))
-pr.2050s <- mapply(get.data.subset,pr.data$data,tasmax.data$time,MoreArgs=list('2041-2070'))
-pr.2080s <- mapply(get.data.subset,pr.data$data,tasmax.data$time,MoreArgs=list('2071-2099'))
-
-tas.clim.1980s <- unlist(lapply(tas.1980s,mean,na.rm=T))
-tas.clim.2050s <- unlist(lapply(tas.2050s,mean,na.rm=T))
-tas.anoms <- tas.clim.2050s - tas.clim.1980s
-
-pr.clim.1980s <- unlist(lapply(pr.1980s,function(x){mean(x[x>0],na.rm=T)}))
-pr.clim.2050s <- unlist(lapply(pr.2050s,function(x){mean(x[x>0],na.rm=T)}))
-pr.anoms <- (pr.clim.2050s - pr.clim.1980s)/pr.clim.1980s*100
-
-tas.seas.1980s <- mapply(get.season.data,tas.1980s,bccaq.1980s,'mean')
-tas.seas.2050s <- mapply(get.season.data,tas.2050s,bccaq.2050s,'mean')
-pr.seas.1980s <- mapply(get.season.data,pr.1980s,bccaq.1980s,'sum')
-pr.seas.2050s <- mapply(get.season.data,pr.2050s,bccaq.2050s,'sum')
-
-tasmax.seasmax.1980s <- mapply(get.season.data,tasmax.1980s,bccaq.1980s,'max')
-tasmax.seasmax.2050s <- mapply(get.season.data,tasmax.2050s,bccaq.2050s,'max')
-
-pr.seasmax.1980s <- mapply(get.season.data,pr.1980s,bccaq.1980s,'max')
-pr.seasmax.2050s <- mapply(get.season.data,pr.2050s,bccaq.2050s,'max')
-
-tas.seas.anoms <- tas.seas.2050s - tas.seas.1980s
-pr.seas.anoms <- (pr.seas.2050s - pr.seas.1980s)/pr.seas.1980s*100
-
-tasmax.seasmax.anoms <- tasmax.seasmax.2050s - tasmax.seasmax.1980s
-pr.seasmax.anoms <- (pr.seasmax.2050s - pr.seasmax.1980s)/pr.seasmax.1980s*100
+}
 
 ##**********************************************************************************
 ##**********************************************************************************
@@ -246,77 +312,102 @@ pr.seasmax.anoms <- (pr.seasmax.2050s - pr.seasmax.1980s)/pr.seasmax.1980s*100
 
 plot.dir <- '/storage/data/projects/rci/building_code/plots/'
 
-
 if (1==0) {
-
 ##Climatologies
-plot.file <- paste(plot.dir,'mean.tas.pr.1980s.climatologies_scatter.png',sep='')
+plot.file <- paste(plot.dir,'gcm.rcm.bccaq.mean.tas.pr.1980s.climatologies_scatter.png',sep='')
 seas.title <- c('Winter Mean','Spring Mean','Summer Mean','Fall Mean')
 png(file=plot.file,width=900,height=900)
-j <- 7
-xlims <- list(c(1,2.25),c(4,7),c(13.5,15),c(7.25,8.75))
-ylims <- list(c(700,900),c(300,500),c(75,200),c(500,700))
+j <- 2
+xlims <- list(c(-5,5.5),c(2,9.5),c(12,19),c(4,11))
+ylims <- list(c(500,900),c(250,600),c(40,260),c(300,900))
 par(mfrow=c(2,2),mar=c(5,5,2,2))
 for (i in 1:4) {
-  plot(tas.seas.1980s[i,],pr.seas.1980s[i,],pch=15,col='red',xlab='Annual Avg TAS (degC)',ylab='Annual Total PR (mm)',main=seas.title[i],
+  plot(bccaq.vars$tas.seas.1980s[i,],bccaq.vars$pr.seas.1980s[i,],
+        pch=15,col='red',xlab='Annual Avg TAS (degC)',ylab='Annual Total PR (mm)',main=seas.title[i],
         xlim=xlims[[i]], ##c(min(tas.seas.1980s[i,])-1,max(tas.seas.1980s[i,])+1),
         ylim=ylims[[i]], ##c(min(pr.seas.1980s[i,])-200,max(pr.seas.1980s[i,])+200),
         cex=3,cex.main=2,cex.lab=2,cex.axis=2)
   points(tas.list[[j]][1,i],pr.list[[j]][1,i],pch=17,col='blue',cex=3)
-  legend('topright',legend=c('BCCAQ 30km','RCM 25km'),col=c('red','blue'),pch=c(15,17),cex=2)
+  points(gcm.vars$tas.seas.1980s[i,],gcm.vars$pr.seas.1980s[i,],col='green',cex=3,pch=16)
+  if (i==4) {
+  legend('topright',legend=c('GCM ~150km','BCCAQ 30km','RCM 25km'),col=c('green','red','blue'),pch=c(16,15,17),cex=2)
+  }
 }
 dev.off()
 
-plot.file <- paste(plot.dir,'max.tas.pr.1980s.climatologies_scatter.png',sep='')
+
+
+
+plot.file <- paste(plot.dir,'gcm.rcm.max.tas.pr.1980s.climatologies_scatter.png',sep='')
 seas.title <- c('Winter Max','Spring Max','Summer Max','Fall Max')
-xlims <- list(c(10.25,12),c(22,24),c(29.5,31.75),c(24.5,26.5))
-ylims <- list(c(50,70),c(30,50),c(18,30),c(40,70))
+xlims <- list(c(1.5,13.5),c(17,28),c(26,38),c(22,31))
+ylims <- list(c(30,70),c(20,50),c(10,30),c(25,70))
 png(file=plot.file,width=900,height=900)
+j<-2
 par(mfrow=c(2,2),mar=c(5,5,2,2))
 for (i in 1:4) {
-  plot(tasmax.seasmax.1980s[i,],pr.seasmax.1980s[i,],pch=15,col='red',xlab='Annual Avg TASMAX (degC)',ylab='Annual Avg Max Precip (mm)',main=seas.title[i],
+  plot(bccaq.vars$tasmax.seasmax.1980s[i,],bccaq.vars$pr.seasmax.1980s[i,],
+        pch=15,col='red',xlab='Annual Avg TASMAX (degC)',ylab='Annual Avg Max Precip (mm)',main=seas.title[i],
         xlim=xlims[[i]], ##c(min(tasmax.seasmax.1980s[i,])-1,max(tasmax.seasmax.1980s[i,])+1),
         ylim=ylims[[i]], ##c(min(pr.seasmax.1980s[i,])-40,max(pr.seasmax.1980s[i,])+40),
         cex=3,cex.main=2,cex.lab=2,cex.axis=2)
   points(tasmax.list[[j]][2,i],pr.list[[j]][2,i],pch=17,col='blue',cex=3)
-  legend('topright',legend=c('BCCAQ 30km','RCM 25km'),col=c('red','blue'),pch=c(15,17),cex=2)
+  points(gcm.vars$tasmax.seasmax.1980s[i,],gcm.vars$pr.seasmax.1980s[i,],col='green',cex=3,pch=16)
+  if (i==4) {
+  legend('bottomright',legend=c('GCM ~150km','BCCAQ 30km','RCM 25km'),col=c('green','red','blue'),pch=c(16,15,17),cex=2)
+  }
 }
 dev.off()
+}
 
 
-plot.file <- paste(plot.dir,'max.tas.pr.1980s.anomalies_scatter.png',sep='')
+if (1==0) {
+
+plot.file <- paste(plot.dir,'gcm.rcm.max.tas.pr.1980s.anomalies_scatter.png',sep='')
 seas.title <- c('Winter Max Change','Spring Max Change','Summer Max Change','Fall Max Change')
-xlims <- list(c(-1,7),c(-0.5,6),c(0,7),c(0,5))
-ylims <- list(c(-10,40),c(0,60),c(-40,30),c(-20,60))
+xlims <- list(c(-1,7.5),c(-0.5,6),c(0,7),c(0,5))
+ylims <- list(c(-10,40),c(-2,60),c(-40,30),c(-20,60))
+j<-2
 png(file=plot.file,width=900,height=900)
 par(mfrow=c(2,2),mar=c(5,5,2,2))
 for (i in 1:4) {
-  plot(tasmax.seasmax.anoms[i,],pr.seasmax.anoms[i,],pch=15,col='red',xlab='Annual Avg TASMAX (degC)',ylab='Annual Average MAX PR (%)',main=seas.title[i],
+  plot(bccaq.vars$tasmax.seasmax.anoms[i,],bccaq.vars$pr.seasmax.anoms[i,],
+        pch=15,col='red',xlab='Annual Avg TASMAX (degC)',ylab='Annual Average MAX PR (%)',main=seas.title[i],
         xlim=xlims[[i]], ##c(min(tasmax.seasmax.anoms[i,])-1,max(tasmax.seasmax.anoms[i,])+1),
         ylim=ylims[[i]], ##c(min(pr.seasmax.anoms[i,])-30,max(pr.seasmax.anoms[i,])+30),
         cex=3,cex.main=2,cex.lab=2,cex.axis=2)
     points(tasmax.list[[j]][1,i+8],pr.list[[j]][1,i+8],pch=17,col='blue',cex=3)
-    legend('topright',legend=c('BCCAQ 30km','RCM 25km'),col=c('red','blue'),pch=c(15,17),cex=2)
+    points(gcm.vars$tasmax.seasmax.anoms[i,],gcm.vars$pr.seasmax.anoms[i,],col='green',cex=3,pch=16)
+    if (i==4) {
+      legend('topleft',legend=c('GCM ~150km','BCCAQ 30km','RCM 25km'),col=c('green','red','blue'),pch=c(16,15,17),cex=2)
+    }
 }
 dev.off()
+}
 
+if (1==1) {
 ##Projected Changes
-plot.file <- paste(plot.dir,'mean.tas.pr.2050s.anoms_scatter.png',sep='')
+plot.file <- paste(plot.dir,'gcm.rcm.mean.tas.pr.2050s.anoms_scatter.png',sep='')
 seas.title <- c('Winter Change','Spring Change','Summer Change','Fall Change')
-xlims <- list(c(1,4),c(1,5.5),c(1,6),c(1,5.5))
-ylims <- list(c(-15,20),c(-20,20),c(-60,40),c(-20,40))
+xlims <- list(c(1,4),c(1,5.5),c(1,6),c(0,5))
+ylims <- list(c(-10,20),c(-20,20),c(-60,40),c(-20,40))
+j<-2
 png(file=plot.file,width=900,height=900)
 par(mfrow=c(2,2),mar=c(5,5,2,2))
 for (i in 1:4) {
-  plot(tas.seas.anoms[i,],pr.seas.anoms[i,],pch=15,col='red',xlab='Annual Avg TAS (degC)',ylab='Annual Total PR (%)',main=seas.title[i],
+  plot(bccaq.vars$tas.seas.anoms[i,],bccaq.vars$pr.seas.anoms[i,],
+        pch=15,col='red',xlab='Annual Avg TAS (degC)',ylab='Annual Total PR (%)',main=seas.title[i],
         xlim=xlims[[i]], ##c(min(tas.seas.anoms[i,])-1,max(tas.seas.anoms[i,])+1),
         ylim=ylims[[i]], ##c(min(pr.seas.anoms[i,])-30,max(pr.seas.anoms[i,])+30),
         cex=3,cex.main=2,cex.lab=2,cex.axis=2)
     points(tas.list[[j]][2,i+8],pr.list[[j]][2,i+8],pch=17,col='blue',cex=3)
-    legend('topright',legend=c('BCCAQ 30km','RCM 25km'),col=c('red','blue'),pch=c(15,17),cex=2)
+    points(gcm.vars$tas.seas.anoms[i,],gcm.vars$pr.seas.anoms[i,],col='green',cex=3,pch=16)
+    if (i==4) {
+      legend('topleft',legend=c('GCM ~150km','BCCAQ 30km','RCM 25km'),col=c('green','red','blue'),pch=c(16,15,17),cex=2)
+    }
 }
 dev.off()
-
+browser()
 }
 
 
@@ -417,6 +508,8 @@ pr.rcm.mon <- mapply(mon.pr,pr.rcm.1980s,rcm.1980s)
 
 ##***********************************************************
 ##***********************************************************
+if (1==0) {
+
 ix <- 2
 ann.mean <- c()
 yr.rcm.fac <- as.factor(format(rcm.dates,'%Y'))
@@ -561,7 +654,7 @@ lines(as.Date(paste(levels(yr.rcm.fac),'-01-01',sep='')),rcm.ann.mean,col='red',
 box(which='plot')
 dev.off()
 
-
+}
 
 
 
