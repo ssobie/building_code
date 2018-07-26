@@ -79,8 +79,7 @@ gather.bccaq.data <- function(gcm,lon.c,lat.c,lats,scenario) {
 ##************************************************************************
 ##Load GCM BasedData
 
-
-gcm <- 'CSIRO-Mk3-6-0'
+gcm <- 'HadGEM2-CC'
 scenario <- 'rcp85'
 
 ##Lions Gate Hospital

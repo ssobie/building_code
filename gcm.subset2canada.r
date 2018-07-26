@@ -46,7 +46,7 @@ make.subsets <- function(write.dir) {
 
   files <- list.files(path=paste(write.dir,'grouptmp',sep=''))
   len <- length(files)
-browser()
+##browser()
   for (i in 1:len) {
     file <- files[i]
     era <- grepl('historical',file)
@@ -101,18 +101,18 @@ group.files <- function(file.list,matrix.subset,write.dir,base.dir,scenarios) {
 base.dir <- '/storage/data/climate/downscale/CMIP5/incoming/'
 
 ##Make sure the GCM and Centre names are paired in the same order below
-gcms <- 'MPI-ESM-MR'
+gcms <- 'CSIRO-Mk3-6-0'
 
-variable.list <- c('pr','tasmax','tasmin')
+variable.list <- 'rhs' ##c('pr','tasmax','tasmin')
 run <- 'r1i1p1'
 
 full.list <- c('Model','Scenario','Run','Variable','Start','End')
-scen.list <- c('historical','rcp26','rcp45','rcp85')
+scen.list <- c('historical','rcp85')##'rcp26','rcp45',
 
-##write.dir <- '/storage/data/climate/downscale/CMIP5/building_code/'
+write.dir <- '/storage/data/climate/downscale/CMIP5/building_code/'
 
 ##write.dir <- '/storage/data/climate/downscale/BCCAQ2+PRISM/CMIP5/global/'
-write.dir <- '/storage/data/climate/downscale/BCCAQ2/CMIP5/'
+##write.dir <- '/storage/data/climate/downscale/BCCAQ2/CMIP5/'
 
 for (gcm in gcms) {
   for (variable in variable.list) {
@@ -135,7 +135,7 @@ for (gcm in gcms) {
        matrix.subset <- file.matrix[test.match,]
        print(file.select)
        gcm.dir <- paste0(base.dir,gcm,'/download/')
-       ##group.files(file.select,matrix.subset,write.dir,gcm.dir,scen.list)    
+       group.files(file.select,matrix.subset,write.dir,gcm.dir,scen.list)    
    
        make.subsets(write.dir)
 
