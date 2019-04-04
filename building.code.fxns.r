@@ -116,6 +116,7 @@ dd <- function(tmean,tbase) {
 }
 cdd.24.fxn  <- function(data,fac){tapply(data,fac, dd, tbase=24)}                            ##Cooling degree days
 cdd.18.3.fxn  <- function(data,fac){tapply(data,fac,dd, tbase=18.3)}                           ##Cooling degree days below 18.3
+cdd.18.fxn  <- function(data,fac){tapply(data,fac,dd, tbase=18.3)}                           ##Cooling degree days below 18.3
 cdd.fxn  <- function(data,fac){tapply(data,fac, dd, tbase=10)}                            ##Cooling degree days
 hdd.fxn  <- function(data,fac){tapply(-data,fac,dd, tbase=-10)}                           ##Heating degree days below 10
 hdd.18.fxn  <- function(data,fac){tapply(-data,fac,dd, tbase=-18)}                           ##Heating degree days below 18

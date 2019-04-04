@@ -90,7 +90,7 @@ get.snow.data <- function(var.name,gcm,scenario,data.dir,lon.c,lat.c) {
 get.bccaq.data <- function(var.name,gcm,scenario,data.dir,lon.c,lat.c) {
 
    gcm.files <- list.files(path=data.dir,
-                           pattern=paste(var.name,'_day_BCCAQ_',gcm,'_',scenario,sep=''),full.name=TRUE)
+                           pattern=paste(var.name,'_day_BCCAQ2_',gcm,'_',scenario,sep=''),full.name=TRUE)
 
    print(gcm.files)
    past.file <- gcm.files[grep('1951-2000',gcm.files)]
@@ -124,6 +124,7 @@ get.bccaq.data <- function(var.name,gcm,scenario,data.dir,lon.c,lat.c) {
 gather.gcm.data <- function(gcm,lon.c,lat.c,scenario) {
   gcm.dir <- paste('/storage/data/climate/downscale/CMIP5/building_code/',gcm,sep='')
 
+if (1==0) {
   rhs.file <- list.files(path=gcm.dir,pattern=paste0('rhs_day_',gcm),full.name=TRUE)
   rhs.data <- get.gcm.data(var.name='rhs',gcm=gcm,gcm.file=rhs.file,lon.c,lat.c)
 
@@ -136,8 +137,9 @@ gather.gcm.data <- function(gcm,lon.c,lat.c,scenario) {
   rv <- list(rhs=rhs.data,
              rsds=rsds.data,
              clt=clt.data)
+}
 
-if (1==0) {
+if (1==1) {
   gcm.dir <- paste('/storage/data/climate/downscale/CMIP5/building_code/',gcm,sep='')
 
   psl.file <- list.files(path=gcm.dir,pattern=paste0('psl_day_',gcm),full.name=TRUE)
@@ -181,7 +183,7 @@ if (1==0) {
 ##BCCAQ Data
 gather.bccaq.data <- function(gcm,lon.c,lat.c,scenario) {
 
-  bccaq.dir <- paste('/storage/data/scratch/ssobie/bccaq_gcm_bc_subset/',gcm,sep='')
+  bccaq.dir <- paste('/storage/data/climate/downscale/BCCAQ2+PRISM/high_res_downscaling/bccaq_gcm_bc_subset/',gcm,sep='')
 
   tasmax.data <- get.bccaq.data('tasmax',gcm,scenario,bccaq.dir,lon.c,lat.c)
   tasmin.data <- get.bccaq.data('tasmin',gcm,scenario,bccaq.dir,lon.c,lat.c)

@@ -5,17 +5,28 @@ library(ncdf4)
 library(rgdal)
 library(raster)
 
+source('/storage/data/projects/rci/stat.downscaling/bccaq2/code/new.netcdf.calendar.R',chdir=T)
 
-rcm.dir <- '/storage/data/climate/downscale/BCCAQ2/CanRCM4/NAM_22/'
-write.dir <- '/storage/data/climate/downscale/BCCAQ2/CanRCM4/'
-var.list <- 'psl' ##c('tasmin','uas','vas','ps','huss','snd','snc')
+rcm.dir <- '/storage/data/climate/downscale/RCM/CanRCM4/daily/NAM_22/'
+write.dir <- '/storage/data/climate/downscale/RCM/CanRCM4/daily/'
+var.list <- c('pr','tas','tasmax','tasmin','uas','vas','ps','huss','snd','snc')
+var.list <- 'snd'
 
-cells <- c(76,150)
 
 for (var.name in var.list) {
 print(var.name)
-lon.i <- -123.968641 
-lat.i <- 49.185618
+##Nanaimo
+##cells <- c(76,150)
+##lon.i <- -123.968641 
+##lat.i <- 49.185618
+
+##Cowichan Hospital
+##lon.i <- -123.722256
+##lat.i <- 48.785912
+
+##Granville and 41st Hospital
+lon.i <- -123.139690
+lat.i <- 49.234305
 
 ##---------------------------------------------
 ##Find the closest grid cell to a point
@@ -47,7 +58,9 @@ dat <- rasterize(spdf,data)
 dat <- subset(dat,2:2)
 
 geod <- sqrt((lon - lon.i)^2 + (lat - lat.i)^2)
-##coord.ix <- which(geod==min(geod),arr.ind=TRUE)
+coord.ix <- which(geod==min(geod),arr.ind=TRUE)
+##cells <- as.numeric(coord.ix)
+cells <- c(80,152)
 coord.ix <- cells
 
 ##----------------------------------------------
@@ -70,12 +83,17 @@ file.list <- c(initial.file,past.list,proj.list)
 
 flen <- length(file.list)
 data <- c()
+time <- c()
 
 for (i in seq_along(file.list)) {
     file <- file.list[i]
+    print(file)
     fnc <- nc_open(file)
     data.sub <- ncvar_get(fnc,start=c(coord.ix[1],coord.ix[2],1),count=c(1,1,-1))
     data <- c(data,data.sub)
+    sub.time <- as.character(format(netcdf.calendar(fnc),'%Y-%m-%d'))     
+    time <- c(time,sub.time)
+
     nc_close(fnc)        
 }
 
@@ -90,7 +108,9 @@ if (grepl('(tasmax|tasmin)',var.name)) {
 }
 
 
-save(data,file=paste(write.dir,var.name,'_NANAIMO_',cells[1],'_',cells[2],'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
+rcm.data <- list(data=data,time=time)
+
+save(rcm.data,file=paste(write.dir,var.name,'_GRANVILLE_41st_',cells[1],'_',cells[2],'_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData',sep=''))
 
 
 }

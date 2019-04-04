@@ -1,0 +1,19 @@
+#!/bin/bash                                                                                                                                
+#PBS -l nodes=1:ppn=4                                                                                         
+#PBS -l pmem=5000mb                                                                                                                       
+#PBS -l walltime=24:00:00                                                                                                                  
+#PBS -d /storage/home/ssobie/code/repos/building_code/
+#PBS -o /storage/home/ssobie/code/repos/building_code/extract.stdout.log
+#PBS -e /storage/home/ssobie/code/repos/building_code/extract.stderr.log                                      
+
+varname='psl'
+
+
+cd /storage/home/ssobie/code/repos/building_code/
+echo "Current working directory is `pwd`"
+
+module load R/3.2.5
+module load netcdf-bin
+module load gdal
+
+nohup R CMD BATCH "--args tmpdir='/local_temp/ssobie/build/' varname='$varname'" extract.hourly.canrcm4.r "./${varname}.extract.out"

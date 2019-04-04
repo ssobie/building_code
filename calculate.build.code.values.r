@@ -7,69 +7,13 @@ library(PCICt)
 source('/storage/home/ssobie/code/repos/building_code/building.code.fxns.r')
 source('/storage/home/ssobie/code/repos/building_code/convert.ashrae.to.metric.r')
 source('/storage/home/ssobie/code/repos/building_code/gcm.bccaq.build.code.data.r',chdir=TRUE)
+source('/storage/home/ssobie/code/repos/building_code/formatted.building.code.table.r',chdir=TRUE)
 
 ##------------------------------------------------------------------
-##Nanaimo Variables
-ashrae.vars <-  list(c(11.2,'degF'), ##Cold Dewpoint Temp 0.4% degF
-                     c(9.8,'ratio'),  ##Cold Humidity Ratio 0.4% gr/lb
-                     c(28.4,'degF'), ##MCDB Dewpoint 0.4% degF
-                     c(63.9,'degF'), ##MCWB Dry Bulb 99.6% degF
-                     c(62.6,'degF'), ##MCWB Dry Bulb 99.0% degF
-                     c(61.4,'degF'), ##MCWB Dry Bulb 98.0% degF
-                     c(65.2,'degF'), ##Evap Wet Bulb 99.6% degF
-                     c(63.8,'degF'), ##Evap Wet Bulb 99.0% degF
-                     c(76.8,'degF'), ##MCDB Wet Bulb 99.6% degF
-                     c(73.9,'degF'), ##MCDB Wet Bulb 99.0% degF
-                     c(60.8,'degF'), ##Warm Dewpoint 99.6% degF (Dehumidification)
-                     c(59.6,'degF'), ##Warm Dewpoint 99.0% degF (Dehumidification)
-                     c(79.9,'ratio'), ##Warm Humidity Ratio 99.6% gr/lb
-                     c(76.3,'ratio'), ##Warm Humidity Ratio 99.0% gr/lb
-                     c(68.9,'degF'),  ##MCDB Depoint 99.6% degF
-                     c(67.4,'degF'),  ##MCDB Depoint 99.0% degF
-                     c(30.1,'btu.lb'), ##Enthalpy 99.6% Btu/lb
-                     c(77.0,'degF'),  ##MCDB Enthalpy 99.6% degF
-                     c(75.2,'degF'), ##Annual Max Wet Bulb degF
-                     c(23.4,'degF'), ##Heating Dry Bulb 0.4% degF
-                     c(27.1,'degF'), ##Heating Dry Bulb 1.0% degF                     
-                     c(80.3,'degF'), ##Cooling Dry Bulb 99.6% degF
-                     c(76.5,'degF'), ##Cooling Dry Bulb 99.0% degF
-                     c(87.5,'degF'), ##Annual Max Dry Bulb degF
-                     c(20.1,'degF'), ##Annual Min Dry Bulb degF
-                     c(46.4,'inch'), ##Annual Total Precip inches
-                     c(62.4,'inch'), ##Annual Max Total Precip inches
-                     c(28.1,'inch'), ##Annual Min Total Precip inches
-                     c(8.0,'inch'),  ##Annual SD Total Precip inches
-                     c(40.4,'mph'),  ##High Annual Wind Speed 99.6% mph
-                     c(41.8,'degF'),  ##Windy MCDB Windy Speed 99.6% degF
-                     c(6.8,'mph'),   ##Cold MCWS Dry Bulb 0.4% mph
-                     c(300,'deg'),   ##Cold PCWD Dry Bulb 0.4% degrees from north
-                     c(7.5,'mph'),   ##Warm MCWS Dry Bulb 99.6% mph
-                     c(340,'deg'),   ##Warm PCWD Dry Bulb 99.6% degrees from north
-                     c(21.9,'mph'),  ##Extreme Annual Wind Speed 95% mph
-                     c(25.9,'mph'),  ##Extreme Annual Wind Speed 97.5% mph
-                     c(30.2,'mph'),  ##Extreme Annual Wind Speed 99% mph
-                     c(89.9,'degF'), ##5-Year Return Period Max Temp degF
-                     c(17.0,'degF'), ##5-Year Return Period Min Temp degF
-                     c(NA,'inch')) ##5-Year Return Period Daily Precip inches
-
-ashrae.si.versions <- unlist(lapply(ashrae.vars,convert.to.si))
-
-##Nanaimo Variables
-bc.si.versions <-  c(-6.0, ##'degC'), ##Cold Month Design Temperature 2.5% degC
-                     -8.0, ##'degC'),  ##Cold Month Design Temperature 1.0% degC
-                     27,   ##'degC'), ##Warm Month Design Temperature 97.5% degC
-                     19,   ##'degC'), ##Warm Month Wet Bulb Temperature 97.5% degC
-                     3000, ##'DD'), ##Degree Days below 18 degC
-                     NA,   ##'DD'), ##Degree Days below 18.3 degC
-                     NA,   ##'DD'), ##Degree Days above 18.3 degC
-                     NA,   ##'mm'), ##Annual Max Daily Precipitation mm
-                     1050, ##'mm'), ##Annual Average Total Precipitation mm
-                     91,   ##'mm'), ##50-Year return period Daily Precipitation
-                     NA,  ##'Pa'),  ##5-Year return period Wind Load
-                     390,  ##'Pa'))  ##10-Year return period Wind Load
-                     500,  ##'Pa'),  ##50-Year return period Wind Load
-                     NA,   ##'kPa'), ##20-Year Return Period Snow Load kPa
-                     2.3)  ##,'kPa')) ##50-Year Return Period Snow Load kPa
+##Nanaimo ASHRAE Variables and Duncan BCBC Variables 
+##for Cowichan Hospital
+##source('/storage/home/ssobie/code/repos/building_code/cowichan.hospital.build.observations.r')
+source('/storage/home/ssobie/code/repos/building_code/granville.41st.build.observations.r')
 
 ##------------------------------------------------------------------
 
@@ -88,34 +32,42 @@ get.data.subset <- function(data,dates,interval) {
   dates.subset <- dates[st:en]
 
   rv <- list(data=data.subset,
-             dates=dates.subset)
+             dates=as.Date(dates.subset))
   return(rv)
 }
 
 get.variables.subset <- function(tas.data,tasmax.data,tasmin.data,
                                  pas.data,huss.data,pr.data,
-                                 uas.data,vas.data,snow.data,dates,interval) { ##snd.data,
+                                 uas.data,vas.data,snow.data,interval) { ##snd.data,
 
-  tas.mon <- get.data.subset(tas.data,dates,interval)
-  tasmax.mon <- get.data.subset(tasmax.data,dates,interval) 
-  tasmin.mon <- get.data.subset(tasmin.data,dates,interval)  
+  tas.mon <- get.data.subset(tas.data$data,tas.data$time,interval)
+  tasmax.mon <- get.data.subset(tasmax.data$data,tasmax.data$time,interval) 
+  tasmin.mon <- get.data.subset(tasmin.data$data,tasmin.data$time,interval)  
 
-  pas.mon <- get.data.subset(pas.data,dates,interval) 
-  huss.mon<- get.data.subset(huss.data,dates,interval) 
-  pr.mon <- get.data.subset(pr.data,dates,interval) 
+  pas.mon <- get.data.subset(pas.data$data,pas.data$time,interval) 
+  huss.mon<- get.data.subset(huss.data$data,huss.data$time,interval) 
+  pr.mon <- get.data.subset(pr.data$data,pr.data$time,interval) 
 
-  uas.mon <- get.data.subset(uas.data,dates,interval) 
-  vas.mon <- get.data.subset(vas.data,dates,interval) 
+  uas.mon <- get.data.subset(uas.data$data,uas.data$time,interval) 
+  vas.mon <- get.data.subset(vas.data$data,vas.data$time,interval) 
 
-  snow.mon <- get.data.subset(snow.data,dates,interval) 
+  snow.mon <- get.data.subset(snow.data$data,snow.data$time,interval) 
 
-  dates.mon <- get.data.subset(dates,dates,interval)
+  ##dates.mon <- get.data.subset(dates,dates,interval)
 
   rv <- list(tas=tas.mon,tasmax=tasmax.mon,tasmin=tasmin.mon,
              pas=pas.mon,huss=huss.mon,pr=pr.mon,
-             uas=uas.mon,vas=vas.mon,snow=snow.mon,dates=dates.mon) ##snd=snd.mon,
+             uas=uas.mon,vas=vas.mon,snow=snow.mon) ##snd=snd.mon,
   return(rv)  
 }
+
+fix.hadley <- function(data) {
+  new.data <- data$data[1:10440]
+  new.dates <- data$dates[1:10440]
+  rv <- list(data=new.data,dates=new.dates)
+  return(rv)
+}
+
 
 get.build.code.anomalies <- function(build.code.fxn,past.var.subsets,start.var.subsets,middle.var.subsets,end.var.subsets) {
 
@@ -159,7 +111,7 @@ ashrae.return.periods.5 <- function(data.subsets) {
 
   tasmax.5.year <- calc.return.periods(tasmax.sub$data,tas.sub$dates,'tasmax',rp)
   tasmin.5.year <- calc.return.periods(tasmin.sub$data,tas.sub$dates,'tasmin',rp)
-  pr.5.year <- calc.return.periods(pr.sub$data,tas.sub$dates,'pr',rp)  
+  pr.5.year <- calc.return.periods(pr.sub$data,pr.sub$dates,'pr',rp)  
 
   rv <- c(tasmax.5.year,tasmin.5.year,pr.5.year)
   return(rv)
@@ -186,8 +138,8 @@ ashrae.annual.wind.parameters <- function(data.subsets) {
 
   wspd <- sqrt(uas.sub$data^2 + vas.sub$data^2)
   wdir <- wind.dir(uas.sub$data,vas.sub$data)
-  wspd.high <- mean(quant.fxn(wspd,as.factor(format(tas.sub$dates,'%Y')),pctl=0.996),na.rm=TRUE)
-  mcdb.wspd.high <- mean(conditional.mon.fxn(main=tas.sub$data,second=wspd,fac=as.factor(format(tas.sub$dates,'%Y')),pctl=0.996),na.rm=TRUE)
+  wspd.high <- mean(quant.fxn(wspd,as.factor(format(uas.sub$dates,'%Y')),pctl=0.996),na.rm=TRUE)
+  mcdb.wspd.high <- mean(conditional.mon.fxn(main=tas.sub$data,second=wspd,fac=as.factor(format(uas.sub$dates,'%Y')),pctl=0.996),na.rm=TRUE)
 
   wspd.mcdb.low <- mean(conditional.mon.fxn(main=wspd,second=tasmin.sub$data,fac=as.factor(format(tas.sub$dates,'%Y')),pctl=0.004),na.rm=TRUE)
   db.pcwd.low <- mean(conditional.mon.fxn(main=wdir,second=tasmin.sub$data,fac=as.factor(format(tas.sub$dates,'%Y')),pctl=0.004),na.rm=TRUE)
@@ -195,9 +147,9 @@ ashrae.annual.wind.parameters <- function(data.subsets) {
   wspd.mcdb.high <- mean(conditional.mon.fxn(main=wspd,second=tasmax.sub$data,fac=as.factor(format(tas.sub$dates,'%Y')),pctl=0.996),na.rm=TRUE)
   db.pcwd.high <- mean(conditional.mon.fxn(main=wdir,second=tasmax.sub$data,fac=as.factor(format(tas.sub$dates,'%Y')),pctl=0.996),na.rm=TRUE)
 
-  wspd.1.ann <- mean(quant.fxn(wspd,as.factor(format(tas.sub$dates,'%Y')),pctl=0.99),na.rm=TRUE)
-  wspd.2.5.ann <- mean(quant.fxn(wspd,as.factor(format(tas.sub$dates,'%Y')),pctl=0.975),na.rm=TRUE)
-  wspd.5.ann <- mean(quant.fxn(wspd,as.factor(format(tas.sub$dates,'%Y')),pctl=0.95),na.rm=TRUE)
+  wspd.1.ann <- mean(quant.fxn(wspd,as.factor(format(uas.sub$dates,'%Y')),pctl=0.99),na.rm=TRUE)
+  wspd.2.5.ann <- mean(quant.fxn(wspd,as.factor(format(uas.sub$dates,'%Y')),pctl=0.975),na.rm=TRUE)
+  wspd.5.ann <- mean(quant.fxn(wspd,as.factor(format(uas.sub$dates,'%Y')),pctl=0.95),na.rm=TRUE)
   
   rv <- c(wspd.high,mcdb.wspd.high,wspd.mcdb.low,db.pcwd.low,wspd.mcdb.high,db.pcwd.high,wspd.5.ann,wspd.2.5.ann,wspd.1.ann)
   return(rv)
@@ -213,10 +165,10 @@ ashrae.annual.precip.parameters <- function(data.subsets) {
   tas.sub <- data.subsets$tas                          
   pr.sub <- data.subsets$pr                          
 
-  pr.ann.avg <- mean(sum.fxn(pr.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
-  pr.ann.max <- max(sum.fxn(pr.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
-  pr.ann.min <- min(sum.fxn(pr.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
-  pr.ann.sd <- sd(sum.fxn(pr.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
+  pr.ann.avg <- mean(sum.fxn(pr.sub$data,as.factor(format(pr.sub$dates,'%Y'))),na.rm=TRUE)
+  pr.ann.max <- max(sum.fxn(pr.sub$data,as.factor(format(pr.sub$dates,'%Y'))),na.rm=TRUE)
+  pr.ann.min <- min(sum.fxn(pr.sub$data,as.factor(format(pr.sub$dates,'%Y'))),na.rm=TRUE)
+  pr.ann.sd <- sd(sum.fxn(pr.sub$data,as.factor(format(pr.sub$dates,'%Y'))),na.rm=TRUE)
 
   rv <- c(pr.ann.avg,pr.ann.max,pr.ann.min,pr.ann.sd)  
   return(rv)
@@ -316,39 +268,60 @@ ashrae.humidity.parameters <- function(data.subsets) {
 ##------------------------------------------------------------------
 ##BC Building Code
 
-bc.quantile.names <- rbind(c('Cool Month Design Temperature 2.5%','degC'), ##tasmin.025.mon
-                           c('Cold Month Design Temperature 1.0%','degC'), ##tasmin.001.mon
-                           c('Warm Month Design Temperature 97.5%','degC'), ##tasmax.975.mon
-                           c('Warm Month Design Wet Bulb Temp 97.5%','degC')) ##wb.975.mon
+bc.quantile.names <- rbind(c('tasmin.050.mon','Cool Month Design Temperature 5.0%','degC'), ##tasmin.050.mon
+                           c('tasmin.025.mon','Cool Month Design Temperature 2.5%','degC'), ##tasmin.025.mon
+                           c('tasmin.010.mon','Cold Month Design Temperature 1.0%','degC'), ##tasmin.010.mon
+                           c('tasmin.004.mon','Cold Month Design Temperature 0.4%','degC'), ##tasmin.004.mon
+                           c('tasmax.996.mon','Warm Month Design Temperature 99.6%','degC'), ##tasmax.996.mon
+                           c('tasmax.990.mon','Warm Month Design Temperature 99.0%','degC'), ##tasmax.990.mon
+                           c('tasmax.975.mon','Warm Month Design Temperature 97.5%','degC'), ##tasmax.975.mon
+                           c('tasmax.950.mon','Warm Month Design Temperature 95.0%','degC'), ##tasmax.950.mon
+                           c('wb.996.mon','Warm Month Design Wet Bulb Temp 99.6%','degC'), ##wb.996.mon
+                           c('wb.990.mon','Warm Month Design Wet Bulb Temp 99.0%','degC'), ##wb.990.mon
+                           c('wb.975.mon','Warm Month Design Wet Bulb Temp 97.5%','degC'), ##wb.975.mon
+                           c('wb.950.mon','Warm Month Design Wet Bulb Temp 95.0%','degC')) ##wb.950.mon
+
 
 bc.quantile.parameters <- function(data.subsets) {
 
-  pr.sub <- data.subsets$pr 
   tas.sub <- data.subsets$tas
   tasmax.sub <- data.subsets$tasmax
   tasmin.sub <- data.subsets$tasmin
   pas.sub <- data.subsets$pas
   huss.sub <- data.subsets$huss
 
+  tasmin.050.mon <- mean(quant.fxn(tasmin.sub$data,as.factor(format(tas.sub$dates,'%Y')),pctl=0.050),na.rm=TRUE)
   tasmin.025.mon <- mean(quant.fxn(tasmin.sub$data,as.factor(format(tas.sub$dates,'%Y')),pctl=0.025),na.rm=TRUE)
-  tasmin.001.mon <- mean(quant.fxn(tasmin.sub$data,as.factor(format(tas.sub$dates,'%Y')),pctl=0.010),na.rm=TRUE)
+  tasmin.010.mon <- mean(quant.fxn(tasmin.sub$data,as.factor(format(tas.sub$dates,'%Y')),pctl=0.010),na.rm=TRUE)
+  tasmin.004.mon <- mean(quant.fxn(tasmin.sub$data,as.factor(format(tas.sub$dates,'%Y')),pctl=0.004),na.rm=TRUE)
+  tasmax.996.mon <- mean(quant.fxn(tasmax.sub$data,as.factor(format(tas.sub$dates,'%Y')),pctl=0.996),na.rm=TRUE)
+  tasmax.990.mon <- mean(quant.fxn(tasmax.sub$data,as.factor(format(tas.sub$dates,'%Y')),pctl=0.990),na.rm=TRUE)
   tasmax.975.mon <- mean(quant.fxn(tasmax.sub$data,as.factor(format(tas.sub$dates,'%Y')),pctl=0.975),na.rm=TRUE)
+  tasmax.950.mon <- mean(quant.fxn(tasmax.sub$data,as.factor(format(tas.sub$dates,'%Y')),pctl=0.950),na.rm=TRUE)
 
   dew.point.day <- dew.point.temp(pas.sub$data,huss.sub$data)
   wet.bulb.day  <- temp.wet.bulb(tas.sub$data,dew.point.day,pas.sub$data,huss.sub$data)
+  wb.996.mon <- mean(quant.fxn(wet.bulb.day,as.factor(format(tas.sub$dates,'%Y')),pctl=0.996),na.rm=TRUE)
+  wb.990.mon <- mean(quant.fxn(wet.bulb.day,as.factor(format(tas.sub$dates,'%Y')),pctl=0.990),na.rm=TRUE)
   wb.975.mon <- mean(quant.fxn(wet.bulb.day,as.factor(format(tas.sub$dates,'%Y')),pctl=0.975),na.rm=TRUE)
+  wb.950.mon <- mean(quant.fxn(wet.bulb.day,as.factor(format(tas.sub$dates,'%Y')),pctl=0.950),na.rm=TRUE)
 
-  rv <- rbind(tasmin.025.mon,tasmin.001.mon,tasmax.975.mon,wb.975.mon)
+  rv <- rbind(tasmin.050.mon,tasmin.025.mon,tasmin.010.mon,tasmin.004.mon,
+              tasmax.996.mon,tasmax.990.mon,tasmax.975.mon,tasmax.950.mon,
+              wb.996.mon,wb.990.mon,wb.975.mon,wb.950.mon)
   return(rv)
 }
 
-bc.mixed.names <- rbind(c('Heating Degree Days (18 degC)','DD'), ##hdd.18.ann
-                        c('Heating Degree Days (18.3 degC)','DD'), ##hdd.18.3.ann
-                        c('Cooling Degree Days (18.3 degC)','DD'), ##cdd.18.3.ann
-                        c('Annual Maximum Daily Precipitation','mm'), ##pr.ann.max
-                        c('Annual Average Total Precipitation','mm'),
-                        c('50-Year Return Period Daily Total Precipitation','mm')) ##pr.rp.year
-
+bc.mixed.names <- rbind(c('hdd.18.ann','Heating Degree Days (18 degC)','DD'), ##hdd.18.ann
+                        c('hdd.18.3.ann','Heating Degree Days (18.3 degC)','DD'), ##hdd.18.3.ann
+                        c('cdd.18.3.ann','Cooling Degree Days (18.3 degC)','DD'), ##cdd.18.3.ann
+                        c('cdd.18.ann','Cooling Degree Days (18 degC)','DD'), ##cdd.18.ann
+                        c('pr.ann.max','Annual Maximum Daily Precipitation','mm'), ##pr.ann.max
+                        c('pr.ann.avg','Annual Average Total Precipitation','mm'),
+                        c('pr_rp5','5-Year Return Period Daily Total Precipitation','mm'), ##pr.rp.year
+                        c('pr_rp10','10-Year Return Period Daily Total Precipitation','mm'), ##pr.rp.year
+                        c('pr_rp20','20-Year Return Period Daily Total Precipitation','mm'), ##pr.rp.year
+                        c('pr_rp50','50-Year Return Period Daily Total Precipitation','mm')) ##pr.rp.year
 
 bc.mixed.parameters <- function(data.subsets) {
 
@@ -360,32 +333,37 @@ bc.mixed.parameters <- function(data.subsets) {
   hdd.18.ann <- mean(hdd.18.fxn(tas.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
   hdd.18.3.ann <- mean(hdd.18.3.fxn(tas.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
   cdd.18.3.ann <- mean(cdd.18.3.fxn(tas.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
-  pr.ann.max <- mean(max.fxn(pr.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
-  pr.ann.avg <- mean(sum.fxn(pr.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
-  pr.rp.year <- calc.return.periods(pr.sub$data,tas.sub$dates,'pr',rp=50)  
+  cdd.18.ann <- mean(cdd.18.fxn(tas.sub$data,as.factor(format(tas.sub$dates,'%Y'))),na.rm=TRUE)
+  pr.ann.max <- mean(max.fxn(pr.sub$data,as.factor(format(pr.sub$dates,'%Y'))),na.rm=TRUE)
+  pr.ann.avg <- mean(sum.fxn(pr.sub$data,as.factor(format(pr.sub$dates,'%Y'))),na.rm=TRUE)
+  pr.rp.5 <- calc.return.periods(pr.sub$data,pr.sub$dates,'pr',rp=5)  
+  pr.rp.10 <- calc.return.periods(pr.sub$data,pr.sub$dates,'pr',rp=10)  
+  pr.rp.20 <- calc.return.periods(pr.sub$data,pr.sub$dates,'pr',rp=20)  
+  pr.rp.50 <- calc.return.periods(pr.sub$data,pr.sub$dates,'pr',rp=50)  
 
-  rv <- c(hdd.18.ann,hdd.18.3.ann,cdd.18.3.ann,pr.ann.max,pr.ann.avg,pr.rp.year)
+  rv <- c(hdd.18.ann,hdd.18.3.ann,cdd.18.3.ann,cdd.18.ann,
+          pr.ann.max,pr.ann.avg,pr.rp.5,pr.rp.10,pr.rp.20,pr.rp.50)
   return(rv)
 }
 
-bc.snow.names <- rbind(c('20-Year Return Period Daily Snow Load','kPa'), ##pr.rp.year
-                       c('50-Year Return Period Daily Snow Load','kPa')) ##pr.rp.year
+bc.snow.names <- rbind(c('snow_rp20','20-Year Return Period Daily Snow Load','kPa'), ##pr.rp.year
+                       c('snow_rp50','50-Year Return Period Daily Snow Load','kPa')) ##pr.rp.year
+
 bc.snow.parameters <- function(data.subsets) {
   snow.sub <- data.subsets$snow
-  snow.rp20.year <- calc.return.periods(snow.sub$data*100,snow.sub$dates,'snd',rp=20)*3.5/100
-  snow.rp50.year <- calc.return.periods(snow.sub$data*100,snow.sub$dates,'snd',rp=50)*3.5/100
+  snow.rp20.year <- calc.return.periods(snow.sub$data*100,as.Date(snow.sub$dates),'snd',rp=20)*3.5/100
+  snow.rp50.year <- calc.return.periods(snow.sub$data*100,as.Date(snow.sub$dates),'snd',rp=50)*3.5/100
   ##snow.rp.year <- snow.rp.year*3.5 ##To convert to snow load assuming snow density of 3.5kN/m^3  
   return(c(snow.rp20.year,snow.rp50.year))
 }
 
 
-bc.wind.names <- rbind(c('5-Year Wind Pressure Return Period','Pa'), ##wind.press.5
-                       c('10-Year Wind Pressure Return Period','Pa'), ##wind.press.10
-                       c('50-Year Wind Pressure Return Period','Pa')) ##wind.press.50
+bc.wind.names <- rbind(c('wind_rp5','5-Year Wind Pressure Return Period','Pa'), ##wind.press.5
+                       c('wind_rp10','10-Year Wind Pressure Return Period','Pa'), ##wind.press.10
+                       c('wind_rp50','50-Year Wind Pressure Return Period','Pa')) ##wind.press.50
 
 bc.wind.parameters <- function(data.subsets) {
 
-  pr.sub <- data.subsets$pr 
   tas.sub <- data.subsets$tas
   uas.sub <- data.subsets$uas
   vas.sub <- data.subsets$vas
@@ -517,12 +495,12 @@ write.combined.table <- function(means.list,tenth.list,ninetieth.list,data.names
                          means.list$end.prct,paste(tenth.list$end.prct,ninetieth.list$end.prct,sep=' to '))
 
     data.header  <- rbind(c('Handbook Past','Model Past',' ','2020s Projection',' ','2020s Change',' ','2020s Percent Change',' ',
-                                                                           '2050s Projection',' ','2050s Change',' ','2050s Percent Change',' ',
-                                                                           '2080s Projection',' ','2080s Change',' ','2080s Percent Change',' '),
+                            '2050s Projection',' ','2050s Change',' ','2050s Percent Change',' ',
+                            '2080s Projection',' ','2080s Change',' ','2080s Percent Change',' '),
                         c('Site','Average','10th%-90th%','Average','10th%-90th%','Average','10th%-90th%','Average','10th%-90th%',
                                                              'Average','10th%-90th%','Average','10th%-90th%','Average','10th%-90th%',
                                                              'Average','10th%-90th%','Average','10th%-90th%','Average','10th%-90th%'))
-   title.col <- cbind(c('Building Code','Variable',data.names[,1]),c('Variable','Units',data.names[,2]))
+   title.col <- cbind(c('Building Code','Variable',data.names[,2]),c('Variable','Units',data.names[,3]))
 
    data.table <- rbind(data.header,range.matrix)
    data.out <- cbind(title.col,data.table)                 
@@ -535,6 +513,49 @@ write.combined.table <- function(means.list,tenth.list,ninetieth.list,data.names
    write.table(data.out,file=write.file,
                sep=',',quote=FALSE,col.name=FALSE,row.name=FALSE)
 }
+
+write.site.adjusted.table <- function(means.list,tenth.list,ninetieth.list,data.names,write.file) {
+
+
+
+   range.matrix <- cbind(means.list$past,
+                         paste(tenth.list$past,ninetieth.list$past,sep=' to '),
+                         means.list$site,
+                         means.list$start.anom+means.list$site,
+                         means.list$site*(1+means.list$start.prct/100),
+                         paste(means.list$site+tenth.list$start.anom,means.list$site+ninetieth.list$start.anom,sep=' to '),
+                         paste(means.list$site*(1+tenth.list$start.prct/100),means.list$site*(1+ninetieth.list$start.prct/100),sep=' to '),
+                         means.list$middle.anom+means.list$site,
+                         means.list$site*(1+means.list$middle.prct/100),
+                         paste(means.list$site+tenth.list$middle.anom,means.list$site+ninetieth.list$middle.anom,sep=' to '),
+                         paste(means.list$site*(1+tenth.list$middle.prct/100),means.list$site*(1+ninetieth.list$middle.prct/100),sep=' to '),
+                         means.list$end.anom+means.list$site,
+                         means.list$site*(1+means.list$end.prct/100),
+                         paste(means.list$site+tenth.list$end.anom,means.list$site+ninetieth.list$end.anom,sep=' to '),
+                         paste(means.list$site*(1+tenth.list$end.prct/100),means.list$site*(1+ninetieth.list$end.prct/100),sep=' to '))
+
+
+
+    data.header  <- rbind(c('Model Past',' ',
+                            'Handbook Past',
+                            '2020s Site Add','Percent','Add','Percent',
+                            '2050s Site Add','Percent','Add','Percent',
+                            '2080s Site Add','Percent','Add','Percent'),
+                        c('Average','10th%-90th%','Site',
+                          'Average','10th%-90th%','Average','10th%-90th%',
+                          'Average','10th%-90th%','Average','10th%-90th%',
+                          'Average','10th%-90th%','Average','10th%-90th%'))
+   title.col <- cbind(c('Building Code','Variable',data.names[,2]),c('Variable','Units',data.names[,3]))
+
+   data.table <- rbind(data.header,range.matrix)
+   data.out <- cbind(title.col,data.table)                 
+
+
+   my.writedir <- '/storage/data/projects/rci/building_code/'
+   write.table(data.out,file=write.file,
+               sep=',',quote=FALSE,col.name=FALSE,row.name=FALSE)
+}
+
 
 
 ##************************************************************************
@@ -563,11 +584,21 @@ scen.list <- 'rcp85' ##c('rcp26','rcp45','rcp85')
 
 data.dir <- '/storage/data/climate/downscale/CMIP5/building_code/data_files/'
 
-my.writedir <- '/storage/data/projects/rci/building_code/'
+my.writedir <- '/storage/data/projects/rci/building_code/granville_41st/'
+##my.writedir <- '/storage/data/projects/rci/building_code/cowichan_hospital/'
 
 ##Nanaimo Hospital Coordinates
-lon.c <- -123.969357
-lat.c <- 49.184737
+##lon.c <- -123.969357
+##lat.c <- 49.184737
+
+##Cowichan Hospital Coordinates
+##lon.c <- -123.722256
+##lat.c <- 48.785912
+
+##Granville and 41st Hospital
+lon.c <- -123.139690
+lat.c <- 49.234305
+
 
 for (scenario in scen.list) {
     gcm.list <- model.list
@@ -581,7 +612,8 @@ for (scenario in scen.list) {
         gcm <- gcm.list[g]
         print(gcm)
         ##BCCAQ Data
-        bccaq.file <- paste0(data.dir,'nanaimo_hospital_bccaq_',gcm,'_',scenario,'_pr_tx_tn.RData')
+        bccaq.file <- paste0(data.dir,'granville_41st_bccaq_',gcm,'_',scenario,'_pr_tx_tn.RData')
+        ##bccaq.file <- paste0(data.dir,'cowichan_hospital_bccaq_',gcm,'_',scenario,'_pr_tx_tn.RData')
         if (!file.exists(bccaq.file)) {
            bccaq.data <- gather.bccaq.data(gcm,lon.c,lat.c,scenario)        
            save(bccaq.data,file=bccaq.file)
@@ -589,22 +621,28 @@ for (scenario in scen.list) {
            load(bccaq.file)
         }
         if (scenario=='rcp85') {
-          snow.file <-  paste0(data.dir,'nanaimo_hospital_bccaq_',gcm,'_',scenario,'_snow.RData')
+          snow.file <-  paste0("/storage/data/climate/downscale/RCM/CanRCM4/daily/",    
+                               ##"snd_COWICHAN_HOSPITAL_77_151_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData")
+                               "snd_GRANVILLE_41st_80_152_NAM-22_CCCma-CanESM2_historical_r1i1p1_CCCma-CanRCM4_r2_day_19500101-21001231.RData")
+          ##paste0(data.dir,'granville_41st_bccaq_',gcm,'_',scenario,'_snow.RData')
           if (!file.exists(snow.file)) {
+              browser()
              snow.data <- gather.snow.data(gcm,lon.c,lat.c,scenario)        
              save(snow.data,file=snow.file)
           } else {
              load(snow.file)
+             snow.data <- rcm.data
           }
         }
         tas.data <- bccaq.data$tas
         tasmax.data <- bccaq.data$tasmax
         tasmin.data <- bccaq.data$tasmin
         pr.data <- bccaq.data$pr        
-        snow.data <- snow.data$snow
+        ##snow.data <- snow.data$snow
 
         ##GCM other variables
-        gcm.file <- paste0(data.dir,'nanaimo_hospital_gcm_',gcm,'_',scenario,'_huss_psl_uas_vas.RData')
+        gcm.file <- paste0(data.dir,'granville_41st_gcm_',gcm,'_',scenario,'_huss_psl_uas_vas.RData')
+        ##gcm.file <- paste0(data.dir,'cowichan_hospital_gcm_',gcm,'_',scenario,'_huss_psl_uas_vas.RData')
         if (!file.exists(gcm.file)) {
            gcm.data <- gather.gcm.data(gcm,lon.c,lat.c,scenario)        
            save(gcm.data,file=gcm.file)
@@ -621,29 +659,35 @@ for (scenario in scen.list) {
         ##Monthly Parameters
         ##Past
         past.int <- '1971-2000'
-        past.var.subsets <- get.variables.subset(tas.data$data,tasmax.data$data,tasmin.data$data,
-                                    psl.data$data,huss.data$data,pr.data$data,uas.data$data,vas.data$data,snow.data$data,
-                                    tasmax.data$time,past.int)
+        past.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
+                                    psl.data,huss.data,pr.data,uas.data,vas.data,snow.data,
+                                    past.int)
 
         start.int <- '2011-2040'
-        start.var.subsets <- get.variables.subset(tas.data$data,tasmax.data$data,tasmin.data$data,
-                                    psl.data$data,huss.data$data,pr.data$data,uas.data$data,vas.data$data,snow.data$data,
-                                    tasmax.data$time,start.int)
+        start.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
+                                    psl.data,huss.data,pr.data,uas.data,vas.data,snow.data,
+                                    start.int)
                                     
         middle.int <- '2041-2070'
-        middle.var.subsets <- get.variables.subset(tas.data$data,tasmax.data$data,tasmin.data$data,
-                                    psl.data$data,huss.data$data,pr.data$data,uas.data$data,vas.data$data,snow.data$data,
-                                    tasmax.data$time,middle.int)
+        middle.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
+                                    psl.data,huss.data,pr.data,uas.data,vas.data,snow.data,
+                                    middle.int)
 
         end.int <- '2071-2100'
-        end.var.subsets <- get.variables.subset(tas.data$data,tasmax.data$data,tasmin.data$data,
-                                    psl.data$data,huss.data$data,pr.data$data,uas.data$data,vas.data$data,snow.data$data,
-                                    tasmax.data$time,end.int)
+        end.var.subsets <- get.variables.subset(tas.data,tasmax.data,tasmin.data,
+                                    psl.data,huss.data,pr.data,uas.data,vas.data,snow.data,
+                                    end.int)
+                                            
+
+        if (gcm=='HadGEM2-ES') {
+          end.vars <- lapply(end.var.subsets,fix.hadley)
+          end.var.subsets <- end.vars
+        }
 
         ##------------------------------------------------------------------------------------------------
         ##------------------------------------------------------------------------------------------------
         ##ASHRAE Parameters
-if (1==0) {
+if (1==1) {
         ashrae.humidity <- get.build.code.anomalies(ashrae.humidity.parameters,past.var.subsets,start.var.subsets,middle.var.subsets,end.var.subsets)
 
         ashrae.dry.temp <- get.build.code.anomalies(ashrae.annual.dry.temp.parameters,past.var.subsets,start.var.subsets,middle.var.subsets,end.var.subsets)
@@ -681,7 +725,7 @@ if (1==0) {
           bc.snow <- lapply(bc.snow,function(x){x*NA})
         }
         bc.wind <- get.build.code.anomalies(bc.wind.parameters,past.var.subsets,start.var.subsets,middle.var.subsets,end.var.subsets)
-        
+
         bc.all.parameters <- mapply(c,bc.quantiles,bc.mixed,bc.wind,bc.snow,SIMPLIFY=FALSE)
         bc.all.names <- rbind(bc.quantile.names,
                           bc.mixed.names,
@@ -696,6 +740,7 @@ if (1==0) {
            bc.matrix <- mapply(rbind,bc.matrix,bc.all.parameters,SIMPLIFY=FALSE)        
         }
      }
+
 if (1==0) {
         ashrae.means <- lapply(lapply(ashrae.matrix,function(x){apply(x,2,mean)}),round,1)
         ashrae.means$start.prct <- round(ashrae.means$start.anom/ashrae.means$past*100,1)
@@ -721,35 +766,33 @@ if (1==0) {
 ##        write.90th <- paste(my.writedir,'ashrae.gcm.bccaq.',scenario,'.ens.90th.percentile.all.variables.nanaimo.building.code.csv',sep='')
 ##        write.annual.table(ashrae.90th,ashrae.all.names,write.90th)
 
-        write.combined.file <- paste(my.writedir,'ashrae.gcm.bccaq.',scenario,'.ens.combined.all.variables.nanaimo.building.code.csv',sep='')
+        write.combined.file <- paste(my.writedir,'ashrae.gcm.bccaq.',scenario,'.ens.combined.all.variables.granville.41st.building.code.csv',sep='')
         write.combined.table(ashrae.means,ashrae.10th,ashrae.90th,ashrae.all.names,write.combined.file)
 }
+
+
         bc.means <- lapply(lapply(bc.matrix,function(x){apply(x,2,mean,na.rm=T)}),round,1)
         bc.means$start.prct <- round(bc.means$start.anom/bc.means$past*100,1)
         bc.means$middle.prct <- round(bc.means$middle.anom/bc.means$past*100,1)
         bc.means$end.prct <- round(bc.means$end.anom/bc.means$past*100,1)
-##        write.file <- paste(my.writedir,'bc.gcm.bccaq.',scenario,'.ens.means.all.variables.nanaimo.building.code.csv',sep='')
-##        write.annual.table(bc.means,bc.all.names,write.file)
 
         bc.10th <- lapply(lapply(bc.matrix,function(x){apply(x,2,quantile,0.1,na.rm=T)}),round,1)
         bc.10th$start.prct <- round(bc.10th$start.anom/bc.10th$past*100,1)
         bc.10th$middle.prct <- round(bc.10th$middle.anom/bc.10th$past*100,1)
         bc.10th$end.prct <- round(bc.10th$end.anom/bc.10th$past*100,1)
 
-##        write.10th <- paste(my.writedir,'bc.gcm.bccaq.',scenario,'.ens.10th.percentile.all.variables.nanaimo.building.code.csv',sep='')
-##        write.annual.table(bc.10th,bc.all.names,write.10th)
-
         bc.90th <- lapply(lapply(bc.matrix,function(x){apply(x,2,quantile,0.9,na.rm=T)}),round,1)
         bc.90th$start.prct <- round(bc.90th$start.anom/bc.90th$past*100,1)
         bc.90th$middle.prct <- round(bc.90th$middle.anom/bc.90th$past*100,1)
         bc.90th$end.prct <- round(bc.90th$end.anom/bc.90th$past*100,1)
 
-##        write.90th <- paste(my.writedir,'bc.gcm.bccaq.',scenario,'.ens.90th.percentile.all.variables.nanaimo.building.code.csv',sep='')
-##        write.annual.table(bc.90th,bc.all.names,write.90th)
-
-        write.combined.file <- paste(my.writedir,'bc.gcm.bccaq.',scenario,'.ens.combined.all.variables.nanaimo.building.code.csv',sep='')
+##browser()
+        write.combined.file <- paste(my.writedir,'bc.gcm.bccaq.',scenario,'.ens.combined.all.variables.granville.41st.building.code.csv',sep='')
+        ##write.combined.table(bc.means,bc.10th,bc.90th,bc.all.names,write.combined.file)
+        ##write.combined.file <- paste(my.writedir,'bc.gcm.bccaq.',scenario,'.ens.formatted.all.variables.cowichan.hospital.building.code.csv',sep='')
         write.combined.table(bc.means,bc.10th,bc.90th,bc.all.names,write.combined.file)
-
+        write.adjusted.file <- paste(my.writedir,'bc.gcm.bccaq.',scenario,'.ens.formatted.site.adjusted.granville.41st.building.code.csv',sep='') 
+        write.site.adjusted.table(bc.means,bc.10th,bc.90th,bc.all.names,write.adjusted.file)
 
 }
 
