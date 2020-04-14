@@ -49,13 +49,14 @@ cal.list <- list(list(cstart1='1980',cend1='2009',cstart2=NULL,cend2=NULL,sim='2
 
 for (var.name in var.list) {
     print(var.name)
-    base.file <- paste0(var.name,'_day_ERA5_BC_19800101-20181231.nc')   
+    base.file <- paste0(var.name,'_day_fine_ERA5_BC_19800101-20181231.nc')   
     write.file <- paste0(var.name,'_QDM_day_ERA5_BC_19800101-20181231.nc')   
     file.copy(from=paste0(read.dir,base.file),to=paste0(tmp.dir,write.file),overwrite=TRUE)
     nc <- nc_open(paste0(tmp.dir,write.file),write=TRUE)
     data <- ncvar_get(nc,var.name)
     time <- netcdf.calendar(nc)
     sim.data <- data*0
+    sim.fill <- sim.data[1,1,]
     for (cal in cal.list) {
        print(cal$sim)
 
@@ -63,16 +64,19 @@ for (var.name in var.list) {
        file.copy(from=paste0(read.dir,'sim/',sim.file),to=tmp.dir,overwrite=TRUE)
 
        snc <- nc_open(paste0(tmp.dir,sim.file))
-
+       sub.data <- ncvar_get(snc,var.name)
        cal.ix <- era5_time_series(cstart1=cal$cstart1,cend1=cal$cend1,cstart2=cal$cstart2,cend2=cal$cend2)
 
        cal.len <- sum(cal.ix)
        all.len <- length(cal.ix)
-
-       sim.data[,,!cal.ix] <- data[,,(cal.len+1):all.len]
+       print(paste0(cal.len+1,' to ',all.len))
+       print(range(which(!cal.ix)))       
+       sim.data[,,!cal.ix] <- sub.data[,,(cal.len+1):all.len]
+       sim.fill[!cal.ix] <- 1
        nc_close(snc)
        file.remove(paste0(tmp.dir,sim.file))
     }
+
     ncvar_put(nc,var.name,sim.data)
     nc_close(nc)
     file.copy(from=paste0(tmp.dir,write.file),to=write.dir,overwrite=TRUE)

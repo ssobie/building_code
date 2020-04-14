@@ -14,19 +14,13 @@ source('/storage/data/projects/rci/stat.downscaling/bccaq2/code/new.netcdf.calen
 ##**************************************************************************************
 
 scenario <- 'rcp85'
-method <- 'daily'
-rlen <- '21'
 agg.fxn <- mean
-###gcm <- 'ACCESS1-0'
+gcm <- 'HadGEM2-ES'
 
-args <- commandArgs(trailingOnly=TRUE)
-for(i in 1:length(args)){
-    eval(parse(text=args[[i]]))
-}
-
-if (method!='roll') { 
-  rlen <- ''
-}
+##args <- commandArgs(trailingOnly=TRUE)
+##for(i in 1:length(args)){
+##    eval(parse(text=args[[i]]))
+##}
 
 dwpt.dir <- '/storage/data/climate/downscale/CMIP5/building_code/'
 epw.dir <- '/storage/data/climate/downscale/BCCAQ2+PRISM/bccaq2_tps/epw_factors/'
@@ -51,36 +45,35 @@ dewpoint.nc <- nc_open(paste0(tmp.dir,'/',dewpoint.file))
 
 
 ##
-dewpoint.1980s.avg <- daily.aggregate(dewpoint.nc,'dewpoint',
+dewpoint.1980s.avg <- daily_aggregate(dewpoint.nc,'dewpoint',
                         gcm=gcm,interval='1971-2000',
-                        method=method,rlen=rlen,agg.fxn=mean)
-dewpoint.1980s.sd <- daily.aggregate(dewpoint.nc,'dewpoint',
+                        agg.fxn=mean)
+dewpoint.1980s.sd <- daily_aggregate(dewpoint.nc,'dewpoint',
                         gcm=gcm,interval='1971-2000',
-                        method=method,rlen=rlen,agg.fxn=sd)
-
+                        agg.fxn=sd)
 
 intervals <- c('2011-2040','2041-2070','2071-2100')
 
 for (interval in intervals) {
 
-  dewpoint.proj.avg <- daily.aggregate(dewpoint.nc,'dewpoint',
+  dewpoint.proj.avg <- daily_aggregate(dewpoint.nc,'dewpoint',
                         gcm=gcm,interval=interval,
-                        method=method,rlen=rlen,agg.fxn=mean)
-  dewpoint.proj.sd <- daily.aggregate(dewpoint.nc,'dewpoint',
+                        agg.fxn=mean)
+  dewpoint.proj.sd <- daily_aggregate(dewpoint.nc,'dewpoint',
                         gcm=gcm,interval=interval,
-                        method=method,rlen=rlen,agg.fxn=sd)
+                        agg.fxn=sd)
 
   delta.dewpoint <- dewpoint.proj.avg - dewpoint.1980s.avg
 
   delta.file <- paste0('delta_dewpoint_',gcm,'_1971-2000_',interval,'.nc')
-  create.factor.file(dewpoint.nc,'dewpoint','degC',
+  create_factor_file(dewpoint.nc,'dewpoint','degC',
                      delta.dewpoint,
                      tmp.dir,delta.file)
   file.copy(from=paste0(tmp.dir,delta.file),to=epw.dir,overwrite=TRUE)
 
   alpha.dewpoint <- dewpoint.proj.sd / dewpoint.1980s.sd
   alpha.file <- paste0('alpha_dewpoint_',gcm,'_1971-2000_',interval,'.nc')
-  create.factor.file(dewpoint.nc,'alpha_dewpoint','ratio',
+  create_factor_file(dewpoint.nc,'alpha_dewpoint','ratio',
                    alpha.dewpoint,
                    tmp.dir,alpha.file)
   file.copy(from=paste0(tmp.dir,alpha.file),to=epw.dir,overwrite=TRUE)

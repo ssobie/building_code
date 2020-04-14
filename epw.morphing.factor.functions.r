@@ -3,30 +3,21 @@
 
 library(ncdf4)
 library(PCICt)
-library(doParallel)
-registerDoParallel(cores=4)
-library(foreach)
-
 
 source('/storage/home/ssobie/code/repos/crcm5/epw.belcher.functions.r',chdir=T)
 source('/storage/data/projects/rci/stat.downscaling/bccaq2/code/new.netcdf.calendar.R',chdir=T)
 
 ##------------------------------------------------------------------------------
-create.factor.file <- function(nc,var.name,var.units,
+create_factor_file <- function(nc,var.name,var.units,
                                input,
                                tmp.dir,write.file) {
 
-  time.atts <- ncatt_get(nc,'time')
-  time.calendar <- time.atts$calendar
-  time.units <- time.atts$units
-
-  time.start <- as.Date(strsplit(time.units, ' ')[[1]][3])
-  origin <- as.PCICt(strsplit(time.units, ' ')[[1]][3],
-                     cal=time.calendar)
-  time.values <- ncvar_get(nc,'time')
-  time.series <- format(origin + time.values*86400,'%Y-%m-%d')
-  years.ix <- grep('1995-',time.series)
-  days <- time.values[years.ix]
+  time.calendar <- '365_day'
+  time.units <- 'days since 1950-01-01 00:00:00'
+  full.dates <- seq(from=as.Date('1950-01-01'),by='day',to=as.Date('1995-12-31'))
+  fd.leap.flag <- grep('02-29',full.dates)
+  noleap.dates <- full.dates[-fd.leap.flag]
+  dates.95 <- which(grepl('1995',noleap.dates))-1
 
   lon <- ncvar_get(nc,'lon')
   lat <- ncvar_get(nc,'lat')
@@ -40,8 +31,8 @@ create.factor.file <- function(nc,var.name,var.units,
   ##Create new netcdf file
   x.geog <- ncdim_def('lon', 'degrees_east', lon)
   y.geog <- ncdim_def('lat', 'degrees_north', lat)
-  t.geog <- ncdim_def('time', time.units, days,
-                      unlim=TRUE, calendar=time.calendar)
+  t.geog <- ncdim_def('time', time.units, dates.95,
+                      unlim=FALSE, calendar=time.calendar)
   var.geog <- ncvar_def(var.name, units=var.units, dim=list(x.geog, y.geog, t.geog),
                         missval=-32768)
   file.nc <- nc_create(paste(tmp.dir,write.file,sep=''), var.geog)
@@ -80,75 +71,71 @@ create.factor.file <- function(nc,var.name,var.units,
 }
 
 ##------------------------------------------------------------------------------
-make_average_series <- function(series,fac,method,rlen=1,agg.fxn) {
-
-   agg.daily <- tapply(series,fac,agg.fxn)
-   if (method=='roll') {
-     agg.daily <- rollmean(agg.data,as.numeric(rlen),fill='extend')
-   }
+make_average_series <- function(series,fac,agg.fxn) {
+                   
+  agg.daily <- tapply(series,fac,agg.fxn)
   return(agg.daily)
 }
 
-##------------------------------------------------------------------------------
+##----------------------------------------------------------------------------------------------
+##Compute the 365 day averaging factor
+make_averaging_factor <- function(interval,time,cal) {
+   yrs <- as.numeric(strsplit(interval,'-')[[1]])
+   full.dates <- seq(from=as.Date(paste0(yrs[1],'-01-01')),by='day',to=as.Date(paste0(yrs[2],'-12-31')))
+   fd.leap.flag <- grep('02-29',full.dates)
+   noleap.dates <- full.dates[-fd.leap.flag]
+   ymax <- max(format(time,'%Y'))
+   if (ymax=='2099') 
+      yrs[2] <- 2099
+   ylen <- yrs[2]-yrs[1]+1
+   
+   fac <- as.factor(rep(sprintf('%03d',1:365),ylen))
+   time <- as.Date(format(time,'%Y-%m-%d'))
+   if (cal=='365') {
+     flag <- noleap.dates %in% time
+     fac <- fac[flag]
+   }  
+   if (grepl('(gregorian|standard)',cal)) {
+     leap.flag <- grep('02-29',time)
+     noleap.time <- time[-leap.flag]
+     flag <- noleap.dates %in% noleap.time
+     fac <- fac[flag]
+   }  
+   return(fac)
+}
+##----------------------------------------------------------------------------------------------
+##Find year indices
 
-
-fix.time.series <- function(nc,gcm,interval,method) {
-   time.atts <- ncatt_get(nc,'time')
-   time.calendar <- time.atts$calendar
-   time.units <- time.atts$units
-   time.values <- ncvar_get(nc,'time')
-   origin.pcict <- as.PCICt(strsplit(time.units, ' ')[[1]][3],
-                            cal=time.calendar)
-   time.series <- origin.pcict + time.values*86400
-   years <- format(time.series,'%Y')
+find_year_indices <- function(time,interval) {
    yrs <- strsplit(interval,'-')[[1]]
-
-   feb.flag <- grep('-02-29',time.series)
-
-   new.origin <- as.PCICt(strsplit(time.units, ' ')[[1]][3],
-                          cal='365_day')
-                           
-   new.time0 <- (as.PCICt(format(time.series[1],'%Y-%m-%d'),cal='365_day') - new.origin)/86400
-   if (length(feb.flag)==0) {
-      new.values <- seq(as.numeric(new.time0),by=1,length.out=length(time.values))
-   } else {
-      new.values <- seq(as.numeric(new.time0),by=1,length.out=length(time.values[-feb.flag]))
-   }
-
-   new.series <- new.origin + new.values*86400
-
-   years <- format(new.series,'%Y')
+   years <- format(time,'%Y')
    st <- head(grep(yrs[1],years),1)
    en <- tail(grep(yrs[2],years),1)
    if (grepl('HadGEM',gcm) & yrs[2]=='2100') {
      en <- length(years)
    }
    cnt <- en-st+1
-
-   factor <- switch(method,
-                    daily='%m-%d',
-                    monthly='%m',
-                    roll='%m-%d',
-                    seasonal='%m')
-   fac <- as.factor(format(new.series[st:en],factor))
-
-   rv <- list(time=new.series[st:en],fac=fac,st=st,en=en,cnt=cnt)
-   return(rv)
+  rv <- list(st=st,en=en,cnt=cnt)
+  return(rv)
 }
 
 
+##----------------------------------------------------------------------------------------------
+separate_365_into_list <- function(nc,var.name,j,time,time.bnds,interval) {
 
+    data.subset <- ncvar_get(nc,var.name,start=c(1,j,time.bnds$st),count=c(-1,1,time.bnds$cnt))
+    data.list <- lapply(seq_len(nrow(data.subset)), function(k) data.subset[k,])
+    rm(data.subset)
+    return(data.list)
+}
 
 ##----------------------------------------------------------------------------------------------
-separate.into.list <- function(nc,var.name,j,time,time.bnds) {
+separate_gregorian_into_list <- function(nc,var.name,j,time,time.bnds,interval) {
 
     data.raw <- ncvar_get(nc,var.name,start=c(1,j,time.bnds$st),count=c(-1,1,time.bnds$cnt))
-    feb.flag <- grep('-02-29',time.bnds$time)
-    if (length(feb.flag!=0)) {
-      data.subset <- data.raw[-feb.flag]
-    } else {
-      data.subset <- data.raw
-    }
+    time.series <- netcdf.calendar(nc)[time.bnds$st:time.bnds$en]
+    feb.flag <- grep('-02-29',time.series)
+    data.subset <- data.raw[,-feb.flag]
     data.list <- lapply(seq_len(nrow(data.subset)), function(k) data.subset[k,])
     rm(data.subset)
     rm(data.raw)
@@ -156,44 +143,92 @@ separate.into.list <- function(nc,var.name,j,time,time.bnds) {
 }
 
 ##----------------------------------------------------------------------------------------------
+separate_360_into_list <- function(nc,var.name,j,time,time.bnds,interval) {
+
+    ##Note Hadley Models are missing December 2005 which throws the time off for
+    ##any interval that includes that month
+
+    data.raw <- ncvar_get(nc,var.name,start=c(1,j,time.bnds$st),count=c(-1,1,time.bnds$cnt))
+    yrs <- as.numeric(strsplit(interval,'-')[[1]])
+    time.sub <- time[time.bnds$st:time.bnds$en]
+    if (yrs[1] < 2005 & yrs[2] > 2005) { ##Interval includes 2005
+        fst <- grep('2004-12-01',time.sub)
+        fen <- grep('2004-12-30',time.sub)
+        st <- grep('2005-11-30',time.sub)
+        en <- grep('2006-01-01',time.sub)
+        filler <- data.raw[,fst:fen]
+        data.tmp <- cbind(data.raw[,1:st],filler,data.raw[,en:ncol(data.raw)])
+        data.raw <- data.tmp
+    }
+    ymax <- max(format(time,'%Y'))
+    if (ymax=='2099' & yrs[1]==2071) 
+       yrs[2] <- 2099
+    ylen <- yrs[2]-yrs[1]+1    
+    inx <- seq(30,365*ylen,73)
+    insrt <- 1:(ylen*365) %in% inx
+    data.fix <- matrix(NA,nrow=nrow(data.raw),ncol=ylen*365)
+
+    data.fix[,!insrt] <- data.raw
+
+    for (i in seq_along(inx)) {
+      ix <- inx[i]
+      data.fix[,ix] <- (data.fix[,ix-1] + data.fix[,ix+1])/2
+    }
+    data.list <- lapply(seq_len(nrow(data.fix)), function(k) data.fix[k,])
+
+    rm(data.raw)
+    return(data.list)
+}
+
+##----------------------------------------------------------------------------------------------
+
 ##Calculate morphing factors
 
-daily.aggregate <- function(nc,var.name,
+daily_aggregate <- function(nc,var.name,
                             gcm,interval,
-                            method,rlen,agg.fxn) {
-
+                            agg.fxn) {
+   print(paste0(gcm, ' for ',interval))
    time <- netcdf.calendar(nc)
    n.lat <- nc$dim$lat$len ##Latitude Length
    n.lon <- nc$dim$lon$len ##Longitude Length
    n.time <- length(time)
+   time.bnds <- find_year_indices(time,interval)
+   cal <- attr(time,'cal')
+   sub.fac <- make_averaging_factor(interval,time[time.bnds$st:time.bnds$en],cal) 
 
-   time.bnds <- fix.time.series(nc,gcm,interval,method)
-   sub.time <- time.bnds$time
-   sub.fac <- time.bnds$fac
 
-   agg.array <- array(NA,c(n.lon,n.lat,length(levels(sub.fac))))
+   sep_fxn <- separate_365_into_list
+   if (grepl('360',cal)) {
+      sep_fxn <- separate_360_into_list
+   }
+   if (grepl('(gregorian|standard)',cal)) {
+      sep_fxn <- separate_gregorian_into_list
+   }
+
+   agg.array <- array(NA,c(n.lon,n.lat,365))
 
    ##Iterate along latitude indices
    for (j in 1:n.lat) {
       print(paste0('Latitude: ',j,' of ',n.lat))
 
-      data.list <- separate.into.list(nc,var.name,j,time,time.bnds)
+      data.list <- sep_fxn(nc,var.name,j,time,time.bnds,interval)
 
       na.flag <- unlist(lapply(data.list,function(x){any(is.na(x))}))
+
       data.sub.list <- data.list[!na.flag]
 
       data.test <- make_average_series(series=data.sub.list[[1]],
-                                         fac=sub.fac,method=method,rlen=rlen,agg.fxn=agg.fxn)           
+                                         fac=sub.fac,agg.fxn=agg.fxn)           
 
       data.result <- rep(list(rep(NA,length(levels(sub.fac)))),n.lon)
 
       ##Compute the aggregate values (default to daily)
       data.agg <- foreach(
                       data=data.sub.list,
-                      .export=c('make_average_series','sub.fac','method','rlen','agg.fxn')
+                      .export=c('make_average_series','sub.fac','agg.fxn')
                     ) %dopar% {
                       objects <- make_average_series(series=data,
-                                      fac=sub.fac,method=method,rlen=rlen,agg.fxn=agg.fxn)
+                                      fac=sub.fac,agg.fxn=agg.fxn)
                               }
       data.result[!na.flag] <- data.agg
       ncol <- length(data.result[[1]])

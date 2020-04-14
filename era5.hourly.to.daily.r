@@ -61,18 +61,18 @@ get_global_atts <- function(freq) {
 ##-------------------------------------------------------------------------------------
 get_variable_units <- function(var.name) {
 
-  units <- list(pr="kg m-2 h-1",prday="kg m-2 day-1",rhs='%',huss='kg kg-1',
+  units <- list(pr="kg m-2 day-1",
                 tasmax='degC',tasmin='degC',tasday='degC',tashour='degC',tasrange='degC',
-                tasskew='',sp='Pa',uwind='m s-1',vwind='m s-1',dewpoint='degC',
-                tcc='fraction',lcc='fraction',rain='kg m-2')             
+                tasskew='',sp='Pa',uwind='m s-1',vwind='m s-1',wspd='m s-1',dewpoint='degC',
+                tcc='fraction',lcc='fraction',rain='kg m-2',
+                ssrd='kJ m-2',strd='kJ m-2',tisr='kJ m-2',fdir='kJ m-2')
   return(units[[var.name]])
 }
 ##-------------------------------------------------------------------------------------
 
 get_variable_specific_atts <- function(var.name) {
 
-  pr.hour.atts <- list(units = get_variable_units('pr'))
-  pr.day.atts <- list(units = get_variable_units('prday'))
+  pr.atts <- list(units = get_variable_units('pr'))
   tasmax.atts <- list(long_name = "Daily Maximum Near-Surface Air Temperature",
                       cell_methods = "time: maximum",units=get_variable_units('tasmax'))
   tasmin.atts <- list(long_name = "Daily Minimum Near-Surface Air Temperature",
@@ -86,15 +86,13 @@ get_variable_specific_atts <- function(var.name) {
   tasskew.atts <- list(long_name = "Daily Near-Surface Air Temperature Skewness",
                        cell_methods = "time: skewness",units=get_variable_units('tasskew'))
   sp.atts <- list(long_name = "Surface pressure",
-                       cell_methods = "time: mean",units=get_variable_units('sp'))
-  rhs.atts <- list(long_name = "Relative Humidity",
-                       cell_methods = "time: mean",units=get_variable_units('rhs'))
-  huss.atts <- list(long_name = "Specific Humidity",
-                       cell_methods = "time: mean",units=get_variable_units('huss'))
+                       cell_methods = "time: skewness",units=get_variable_units('sp'))
   uwind.atts <- list(long_name = "10 metre U wind component",
                      units=get_variable_units('uwind'))
   vwind.atts <- list(long_name = "10 metre V wind component",
                      units=get_variable_units('vwind'))
+  wspd.atts <- list(long_name = "10 metre wind speed",
+                     units=get_variable_units('wspd'))
   dewpoint.atts <- list(long_name = "2 metre dewpoint temperature",
                         units=get_variable_units('dewpoint'))
   totalcloud.atts <- list(long_name = "Total cloud cover",
@@ -104,9 +102,9 @@ get_variable_specific_atts <- function(var.name) {
   totalrain.atts <- list(long_name = "Total Column Rain Water",
                         units=get_variable_units('totalrain'))
 
+
   var.atts <- switch(var.name,
-                     pr=pr.hour.atts,
-                     prday=pr.day.atts,
+                     pr=pr.atts,
                      tasmax=tasmax.atts,
                      tasmin=tasmin.atts,
                      tasday=tasday.atts,
@@ -114,10 +112,9 @@ get_variable_specific_atts <- function(var.name) {
                      tasrange=tasrange.atts,
                      tasskew=tasskew.atts,
                      sp=sp.atts,
-                     rhs=rhs.atts,
-                     huss=huss.atts,
                      uwind=uwind.atts,
                      vwind=vwind.atts,
+                     wspd=wspd.atts,
                      dewpoint=dewpoint.atts,
                      tcc=totalcloud.atts,
                      lcc=lowcloud.atts,
@@ -149,6 +146,9 @@ get_standard_atts <- function(var.name) {
                    missing_value = 1.e+20)
   vwind.atts <- list(standard_name = "10 metre U wind component",
                    missing_value = 1.e+20)
+  wspd.atts <- list(standard_name = "10 metre wind speed",
+                   missing_value = 1.e+20)
+
   dewpoint.atts <- list(standard_name = "2 metre dewpoint temperature",
                    missing_value = 1.e+20)
   totalcloud.atts <- list(standard_name = "Cloud cover fraction",
@@ -157,19 +157,14 @@ get_standard_atts <- function(var.name) {
                    missing_value = 1.e+20)
   totalrain.atts <- list(standard_name = "Total Column Rain Water",
                    missing_value = 1.e+20)
-  rhs.atts <- list(standard_name = "Relative Humidity",
-                   missing_value = 1.e+20)
-  huss.atts <- list(standard_name = "Specific Humidity",
-                   missing_value = 1.e+20)
 
   var.atts <- switch(var.name,
                      pr=pr.atts,
                      tas=tas.atts,
                      sp=sp.atts,
-                     rhs=rhs.atts,
-                     huss=huss.atts,
                      uwind=uwind.atts,
                      vwind=vwind.atts,
+                     wspd=wspd.atts,
                      dewpoint=dewpoint.atts,
                      totalcloud=totalcloud.atts,
                      lowcloud=lowcloud.atts,
@@ -181,10 +176,10 @@ get_standard_atts <- function(var.name) {
   return(rv)
 }
 
-add_attributes_ncdf <- function(var.info, time, nc) {
+add_attributes_ncdf <- function(var.name,var.type, time, nc) {
 
-  standard.atts <- get_standard_atts(var.info$type)
-  variable.atts <- get_variable_specific_atts(var.info$name)
+  standard.atts <- get_standard_atts(var.type)
+  variable.atts <- get_variable_specific_atts(var.name)
   print('Lon names')
   lon.names <- names(standard.atts$lon)
   for (j in 1:length(standard.atts$lon))
@@ -197,11 +192,11 @@ add_attributes_ncdf <- function(var.info, time, nc) {
   print('Standard names')
   var.names <- names(standard.atts$var)
   for (j in 1:length(standard.atts$var))
-    ncatt_put(nc,varid=var.info$name,attname=var.names[j],attval=standard.atts$var[[j]])
+    ncatt_put(nc,varid=var.name,attname=var.names[j],attval=standard.atts$var[[j]])
   print('Variable names')
   var.names <- names(variable.atts$var)
   for (j in 1:length(variable.atts$var))
-    ncatt_put(nc,varid=var.info$name,attname=var.names[j],attval=variable.atts$var[[j]])
+    ncatt_put(nc,varid=var.name,attname=var.names[j],attval=variable.atts$var[[j]])
  
   print('Time atts')
   ##Time attributes
@@ -224,13 +219,15 @@ add_attributes_ncdf <- function(var.info, time, nc) {
 
 
 ##-------------------------------------------------------------------------------------
-make_era5_netcdf <- function(var.info,base.file,dir) {
+make_daily_era5_netcdf <- function(var.name,var.type,hour.dates,base.file,dir) {
+
+  daily.file <- gsub('hour','day',base.file)
 
   nc <- nc_open(paste0(dir,base.file),write=FALSE)
-  lon <- ncvar_get(nc,'longitude')
-  lat <- ncvar_get(nc,'latitude')  
+  lon <- ncvar_get(nc,'lon')
+  lat <- ncvar_get(nc,'lat')  
 
-  time <- era5_time_series(var.info$freq,var.info$dates)
+  time <- era5_time_series('day',hour.dates)
 
   ##Create new netcdf file
   x.geog <- ncdim_def('lon', 'degrees_east', lon)
@@ -238,189 +235,112 @@ make_era5_netcdf <- function(var.info,base.file,dir) {
   t.geog <- ncdim_def('time', time$units, time$values,
                       unlim=FALSE, calendar=time$calendar)
 
-  var.geog <- ncvar_def(var.info$name, units=get_variable_units(var.info$name),
+  var.geog <- ncvar_def(var.name, units=get_variable_units(var.name),
                         dim=list(x.geog, y.geog,t.geog),
                         missval=1.e+20)
-  new.nc <- nc_create(paste(dir,var.info$file,sep=''),var.geog)
+  new.nc <- nc_create(paste(dir,daily.file,sep=''),var.geog)
 
-  add_attributes_ncdf(var.info, time, new.nc)                        
+  add_attributes_ncdf(var.name,var.type, time, new.nc)                        
   ncvar_put(new.nc,'lon',lon)
-  ##Invert Lat values
-  n.lat <- length(lat)
-  ncvar_put(new.nc,'lat',lat[(n.lat:1)])
+  ncvar_put(new.nc,'lat',lat)
   
   nc_close(nc)
   nc_close(new.nc)
-  
+  return(daily.file)  
+
 }
 
 ##-------------------------------------------------------------------------------------
 
-make_daily_series <- function(year,input.data,agg.fxn) {
-
-   year.dates <- seq(from=as.PCICt(paste0(year,'-01-01 00:00:00'),cal=calendar),
-                     by='hour',
-                     to=as.PCICt(paste0(year,'-12-31 23:00:00'),cal=calendar))
-
+make_daily_series <- function(year.dates,input.data,agg.fxn) {
    day.fac <- as.factor(format(year.dates,'%Y-%m-%d'))
-   day.time <- as.Date(levels(day.fac))
-  
+   day.time <- as.Date(levels(day.fac)) 
    input.agg <- aperm(apply(input.data,c(1,2),function(x,y){tapply(x,y,agg.fxn)},day.fac),c(2,3,1))
-
    return(input.agg)
 }
-
  
 ##-------------------------------------------------------------------------------------
-concatenate_series <- function(var.name,year,vnc,var.info,input.data) {
-   all.dates <- var.info$dates
-   freq <- var.info$freq
-   year.dates <- seq(from=as.PCICt(paste0(year,'-01-01 00:00:00'),cal=calendar),
-                     by=freq,
-                     to=as.PCICt(paste0(year,'-12-31 23:00:00'),cal=calendar))
-   yix <- which(all.dates %in% year.dates)
-   yst <- head(yix,1)
-   yen <- tail(yix,1)
-   yct <- yen-yst+1
-
-   ncvar_put(vnc,var.info$name,input.data,start=c(1,1,yst),count=c(-1,-1,yct))
-}
- 
-##-------------------------------------------------------------------------------------
-
-
 ##*************************************************************************************
 
-read.dir <- '/storage/data/climate/downscale/BCCAQ2+PRISM/ERA5/'
+read.dir <- '/storage/data/climate/downscale/BCCAQ2+PRISM/ERA5/concat/'
 tmp.dir <- '/local_temp/ssobie/era5/'
 if (!file.exists(tmp.dir))
    dir.create(tmp.dir,recursive=TRUE)
 
 ##-------------------------------------------------------------------------------------
 ##From Hourly Temperature
+###'ssrd',
+##var.list <- c('strd','tisr','fdir','uwind','vwind','dewpoint','tcc','lcc','rain')
+##var.list <- 'wspd'
+info.list <- list(pr=list(name='pr',type='pr',file='pr_hour_ERA5_BC_19800101-20181231.nc'),
+                 sp=list(name='sp',type='sp',file='surface_pressure_hour_ERA5_BC_19800101-20181231.nc'),
+                 ssrd=list(name='ssrd',type='ssrd',file='surface_solar_down_hour_ERA5_BC_19800101-20181231.nc'),
+                 strd=list(name='strd',type='strd',file='surface_thermal_down_hour_ERA5_BC_19800101-20181231.nc'),
+                 tisr=list(name='tisr',type='tisr',file='toa_insolation_hour_ERA5_BC_19800101-20181231.nc'),
+                 fdir=list(name='fdir',type='fdir',file='total_sky_direct_hour_ERA5_BC_19800101-20181231.nc'),
+                 uwind=list(name='uwind',type='uwind',file='uwind_hour_ERA5_BC_19800101-20181231.nc'),                 
+                 vwind=list(name='vwind',type='vwind',file='vwind_hour_ERA5_BC_19800101-20181231.nc'),                 
+                 wspd=list(name='wspd',type='wspd',file='wspd_hour_ERA5_BC_19800101-20181231.nc'),                 
+                 dewpoint=list(name='dewpoint',type='dewpoint',file='dewpoint_hour_ERA5_BC_19800101-20181231.nc'),                 
+                 tcc=list(name='tcc',type='tcc',file='total_cloud_cover_hour_ERA5_BC_19800101-20181231.nc'),                 
+                 lcc=list(name='lcc',type='lcc',file='low_cloud_cover_hour_ERA5_BC_19800101-20181231.nc'),                 
+                 rain=list(name='rain',type='rain',file='total_colum_rain_hour_ERA5_BC_19800101-20181231.nc'))
 
-##File for metadata attributes
-base.file <- '10m_v_component_of_wind_hour_ERA5_BC_1995.nc'
-file.copy(from=paste0(read.dir,base.file),to=tmp.dir,overwrite=TRUE)
-
-calendar <- 'gregorian'
-hour.dates <- seq(from=as.PCICt('1980-01-01 00:00:00',cal=calendar),by='hour',to=as.PCICt('2018-12-31 23:00:00',cal=calendar))
-day.dates <- seq(from=as.PCICt('1980-01-01',cal=calendar),by='day',to=as.PCICt('2018-12-31',cal=calendar))
-years <- 1980:2018
-
-##day.time <- era5_time_series('day',day.dates)
-hour.time <- era5_time_series('hour',hour.dates)
-
-
-##Create netcdf write files
-##var.list <- c('tashour','tasday','tasmax','tasmin','tasrange','tasskew')
-##info.list <- list(tashour=list(name='tashour',filevar='tas',type='tas',freq='hour',dates=hour.dates,file='tas_hour_ERA5_BC_19800101-20181231.nc'),  
-##                  tasday=list(name='tasday',filevar='tas',type='tas',freq='day',dates=day.dates,file='tas_day_ERA5_BC_19800101-20181231.nc'),  
-##                  tasmax=list(name='tasmax',filevar='tasmax',type='tas',freq='day',dates=day.dates,file='tasmax_day_ERA5_BC_19800101-20181231.nc'),                
-##                  tasmin=list(name='tasmin',filevar='tasmin',type='tas',freq='day',dates=day.dates,file='tasmin_day_ERA5_BC_19800101-20181231.nc'),                
-##                  tasrange=list(name='tasrange',filevar='tasrange',type='tas',freq='day',dates=day.dates,file='tasrange_day_ERA5_BC_19800101-20181231.nc'),
-##                  tasskew=list(name='tasskew',filevar='tasskew',type='tas',freq='day',dates=day.dates,file='tasskew_day_ERA5_BC_19800101-20181231.nc'))
-
-
-##var.list <- c('sp','uwind','vwind','dewpoint','totalcloud','lowcloud','totalrain')
-var.list <- c('rhs','huss')
-info.list <- list(sp=list(name='sp',filevar='sp',type='sp',freq='hour',dates=hour.dates,
-                                infile='surface_pressure_hour_ERA5_BC', file='surface_pressure_hour_ERA5_BC_19800101-20181231.nc'),
-                  uwind=list(name='uwind',filevar='u10',type='uwind',freq='hour',dates=hour.dates,
-                                infile='10m_u_component_of_wind_hour_ERA5_BC', file='uwind_hour_ERA5_BC_19800101-20181231.nc'),
-                  vwind=list(name='vwind',filevar='v10',type='vwind',freq='hour',dates=hour.dates,
-                                infile='10m_v_component_of_wind_hour_ERA5_BC', file='vwind_hour_ERA5_BC_19800101-20181231.nc'),
-                  dewpoint=list(name='dewpoint',filevar='d2m',type='tas',freq='hour',dates=hour.dates,
-                                infile='2m_dewpoint_temperature_hour_ERA5_BC', file='dewpoint_hour_ERA5_BC_19800101-20181231.nc'),
-                  totalcloud=list(name='tcc',filevar='tcc',type='cloud',freq='hour',dates=hour.dates,
-                                infile='total_cloud_cover_hour_ERA5_BC',file='total_cloud_cover_hour_ERA5_BC_19800101-20181231.nc'),
-                  lowcloud=list(name='lcc',filevar='lcc',type='cloud',freq='hour',dates=hour.dates,
-                                infile='low_cloud_cover_hour_ERA5_BC',file='low_cloud_cover_hour_ERA5_BC_19800101-20181231.nc'),
-                  totalrain=list(name='rain',filevar='tcrw',type='rain',freq='hour',dates=hour.dates,
-                                infile='total_column_rain_water_hour_ERA5_BC',file='total_column_rain_hour_ERA5_BC_19800101-20181231.nc'),
-                  pr=list(name='pr',filevar='tp',type='pr',freq='hour',dates=hour.dates,
-                                infile='total_precipitation_hour_ERA5_BC', file='pr_hour_ERA5_BC_19800101-20181231.nc'),
-                  rhs=list(name='rhs',filevar='r',type='rhs',freq='hour',dates=hour.dates,
-                                infile='relative_humidity_hour_ERA5_BC', file='rhs_hour_ERA5_BC_19800101-20181231.nc'),
-                  huss=list(name='huss',filevar='q',type='huss',freq='hour',dates=hour.dates,
-                                infile='specific_humidity_hour_ERA5_BC', file='huss_hour_ERA5_BC_19800101-20181231.nc'))
-
-                                
-
-
-##----------------------------
-##Create derived files
-ncs.list <- vector(mode='list',length=length(var.list))
-names(ncs.list) <- var.list
-for (var.name in var.list) {
-   print(paste0('Making file for ',var.name))
-   var.info <- info.list[[var.name]]
-   make_era5_netcdf(var.info,base.file=base.file,
-                    dir=tmp.dir)
-   ncs.list[[var.name]] <- nc_open(paste0(tmp.dir,var.info$file),write=TRUE)
- 
-}
-
-##---------------------------
+var.list <- 'pr'
+var.fxn <- sum
 
 for (var.name in var.list) {
+  print(var.name)
+  print(get_variable_units(var.name))
   var.info <- info.list[[var.name]]
+  ##File for metadata attributes
+  base.file <- var.info$file
+  file.copy(from=paste0(read.dir,base.file),to=tmp.dir,overwrite=TRUE)
+
+  calendar <- 'gregorian'
+  hour.dates <- seq(from=as.PCICt('1980-01-01 00:00:00',cal=calendar),by='hour',to=as.PCICt('2018-12-31 23:00:00',cal=calendar))
+  day.dates <- seq(from=as.PCICt('1980-01-01',cal=calendar),by='day',to=as.PCICt('2018-12-31',cal=calendar))
+  years <- 1980:2018
+
+  day.time <- era5_time_series('day',day.dates)
+
+  daily.file <- make_daily_era5_netcdf(var.name,var.info$type,hour.dates=day.dates,base.file=base.file,
+                                       dir=tmp.dir)
+
+  dnc <- nc_open(paste0(tmp.dir,daily.file),write=TRUE)
+  hnc <- nc_open(paste0(tmp.dir,base.file))
+ 
   for (year in years) {
-    print(year)
-    year.file <- paste0(var.info$infile,'_',year,'.nc')
-    file.copy(from=paste0(read.dir,year.file),to=tmp.dir,overwrite=TRUE)
+     print(year)
+     year.dates <- seq(from=as.PCICt(paste0(year,'-01-01 00:00:00'),cal=calendar),
+                       by='hour',
+                       to=as.PCICt(paste0(year,'-12-31 23:00:00'),cal=calendar))
+     hix <- which(hour.dates %in% year.dates)
+     hst <- head(hix,1)
+     hen <- tail(hix,1)
+     hct <- hen-hst+1
+     year.data <- ncvar_get(hnc,var.name,start=c(1,1,hst),count=c(-1,-1,hct))
+     daily.data <- make_daily_series(year.dates,year.data,var.fxn)
 
-    ync <- nc_open(paste0(tmp.dir,year.file))
-    data.raw <- ncvar_get(ync,var.info$filevar)
-    if (var.info$type=='tas') {
-      data.inv <- ud.convert(data.raw,'K','degC')
-    } else if (var.info$type=='pr') {
-      data.inv <- data.raw*1000 ##m to mm
-    } else {
-       data.inv <- data.raw
-    }
-    ##Invert tas to fix latitude order
-    n.lat <- ync$dim$latitude$len
-    data.fix <- data.inv[,(n.lat:1),]
+     yday.dates <- seq(from=as.PCICt(paste0(year,'-01-01 00:00:00'),cal=calendar),
+                       by='day',
+                       to=as.PCICt(paste0(year,'-12-31 23:00:00'),cal=calendar))
+     yix <- which(day.dates %in% yday.dates)
+     yst <- head(yix,1)
+     yen <- tail(yix,1)
+     yct <- yen-yst+1  
 
-    ##Concatenate Hourly temperatures
-    concatenate_series(var.name,year,ncs.list[[var.name]],var.info,data.fix)
-
-    ##Calculate Daily Maximum Temperature
-    ##tasmax <- make_daily_series(year,tas,max)
-    ##concatenate_series('tasmax',year,ncs.list[['tasmax']],info.list[['tasmax']],tasmax)
-    ##tasmin <- make_daily_series(year,tas,min)
-    ##concatenate_series('tasmin',year,ncs.list[['tasmin']],info.list[['tasmin']],tasmin)
-    ##tas.day <- make_daily_series(year,tas,mean)
-    ##concatenate_series('tasday',year,ncs.list[['tasday']],info.list[['tasday']],tas.day)
-    ##tasrange <- tasmax-tasmin
-    ##concatenate_series('tasrange',year,ncs.list[['tasrange']],info.list[['tasrange']],tasrange)
-    ##tasskew <- (tas.day - tasmin)/tasrange
-    ##concatenate_series('tasskew',year,ncs.list[['tasskew']],info.list[['tasskew']],tasskew)
-
-    nc_close(ync)
-    file.remove(paste0(tmp.dir,year.file))
+     ncvar_put(dnc,var.name,daily.data,start=c(1,1,yst),count=c(-1,-1,yct))
+    
   }
+  nc_close(dnc)
+  nc_close(hnc)
+  file.copy(from=paste0(tmp.dir,daily.file),to=read.dir,overwrite=TRUE)
 
 }
 
 
-for (var.name in var.list) {
-  nc_close(ncs.list[[var.name]])
-  print(info.list[[var.name]][['file']])
-  file.copy(from=paste0(tmp.dir,info.list[[var.name]][['file']]),to=paste0(read.dir,'concat/'),overwrite=TRUE)
-}
 
-
-
-
-
-##Calculate TASMAX
-##Calculate TASMIN
-##Calculate TAS
-##Calculate TAS RANGE
-##Calculate TAS SKEW
-##Concatenate daily values into single file
 
 
 

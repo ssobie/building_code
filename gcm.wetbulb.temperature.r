@@ -58,10 +58,10 @@ temp.wet.bulb <- function(tas,temp.dew,pas,sp.hum) {
 ##----------------------------------------------------------------------------------------------
 
 make.new.wbt.file <- function(gcm,rcp,run,
-                              tas.file,
+                              psl.file,
                               tmp.base) {
   new.var <- 'wetbulb'
-  nc <- nc_open(paste0(tmp.base,tas.file),write=FALSE)
+  nc <- nc_open(paste0(tmp.base,psl.file),write=FALSE)
   time.atts <- ncatt_get(nc,'time')
   time.calendar <- time.atts$calendar
   time.units <- time.atts$units
@@ -79,7 +79,7 @@ make.new.wbt.file <- function(gcm,rcp,run,
   lon_bnds <- ncvar_get(nc,'lon_bnds')
   lat <- ncvar_get(nc,'lat')
   lat_bnds <- ncvar_get(nc,'lat_bnds')
-  var.atts <- ncatt_get(nc,'tas')
+
 
   time_bnds <- ncvar_get(nc,'time_bnds')
   n.lon <- length(lon)
@@ -92,7 +92,7 @@ make.new.wbt.file <- function(gcm,rcp,run,
   y.geog <- ncdim_def('lat', 'degrees_north', lat)
   t.geog <- ncdim_def('time', time.units, time.values,
                       unlim=FALSE, calendar=time.calendar)
-  var.geog <- ncvar_def(new.var, units=var.atts$units, dim=list(x.geog, y.geog,t.geog),
+  var.geog <- ncvar_def(new.var, units='degC', dim=list(x.geog, y.geog,t.geog),
                         missval=1.e+20)
 
   hist.nc <- nc_create(paste(tmp.base,write.file,sep=''),var.geog)
@@ -156,16 +156,23 @@ calculate.wetbulb.temp <- function(tas.file,dwpt.file,psl.file,huss.file,wetbulb
   huss.nc <- nc_open(paste0(tmp.base,huss.file))
   wt.nc <- nc_open(paste0(tmp.base,wetbulb.file),write=TRUE)
 
-  time <- netcdf.calendar(tas.nc)
+  tas.time <- netcdf.calendar(tas.nc)
+  dwpt.time <- netcdf.calendar(dwpt.nc)
+  psl.time <- netcdf.calendar(psl.nc)
+  huss.time <- netcdf.calendar(huss.nc)
+  wt.time <- netcdf.calendar(wt.nc)
+
+  tas.match <- tas.time %in% psl.time
+  
   yrs <- levels(as.factor(format(time,'%Y')))
-  n.lat <- tas.nc$dim$lat$len ##Latitude Length
-  n.lon <- tas.nc$dim$lon$len ##Longitude Length
-  n.time <- tas.nc$dim$time$len ##Longitude Length
+  n.lat <- psl.nc$dim$lat$len ##Latitude Length
+  n.lon <- psl.nc$dim$lon$len ##Longitude Length
+  n.time <- psl.nc$dim$time$len ##Longitude Length
 
   for (j in 1:n.lat) { 
     print(paste0('Latitude: ',j,' of ',n.lat))
     tas.subset <- ncvar_get(tas.nc,'tas',start=c(1,j,1),count=c(-1,1,-1))
-    tas.list <- lapply(seq_len(nrow(tas.subset)), function(k) tas.subset[k,])
+    tas.list <- lapply(seq_len(nrow(tas.subset)), function(k) tas.subset[k,tas.match])
     rm(tas.subset)
 
     dwpt.subset <- ncvar_get(dwpt.nc,'dewpoint',start=c(1,j+offset,1),count=c(-1,1,-1))
@@ -189,6 +196,7 @@ calculate.wetbulb.temp <- function(tas.file,dwpt.file,psl.file,huss.file,wetbulb
                              ) %dopar% {
                                 objects <- temp.wet.bulb(tas=tas,temp.dew=dwpt,pas=psl,sp.hum=huss)
                                     }
+
     wt.matrix <- matrix(unlist(wetbulbs),nrow=n.lon,ncol=n.time,byrow=T)
     ncvar_put(wt.nc,varid='wetbulb',vals=wt.matrix,
                       start=c(1,j,1),count=c(-1,1,n.time))
@@ -203,11 +211,15 @@ calculate.wetbulb.temp <- function(tas.file,dwpt.file,psl.file,huss.file,wetbulb
 
 
 ##----------------------------------------------------------------------------------------------
-  args <- commandArgs(trailingOnly=TRUE)
-  for(i in 1:length(args)){
-      eval(parse(text=args[[i]]))
-  }
+##  args <- commandArgs(trailingOnly=TRUE)
+##  for(i in 1:length(args)){
+##      eval(parse(text=args[[i]]))
+##  }
 
+gcm <- 'HadGEM2-CC'
+varname <- 'wetbulb'
+scenario='rcp85'
+tmpdir='/local_temp/ssobie/wetbulb/'
 
 tmp.dir <- tmpdir
 print(tmp.dir)
@@ -216,7 +228,7 @@ if (!file.exists(tmpdir)) {
   dir.create(tmpdir,recursive=T)
 }
 
-run <- 'r3i1p1'
+run <- 'r1i1p1'
 
 read.dir <- paste0('/storage/data/climate/downscale/CMIP5/building_code/',gcm,'/')
 dwpt.file <- paste0('dewpoint_day_',gcm,'_historical+',scenario,'_',run,'_19500101-21001231.nc')
@@ -251,7 +263,7 @@ print('Copying HUSS file')
 file.copy(from=paste0(read.dir,huss.file),to=tmp.dir,overwrite=T)
 
 wetbulb.file <- make.new.wbt.file(gcm,scenario,run,
-                                  tas.file,
+                                  psl.file,
                                   tmp.dir)
 calculate.wetbulb.temp(tas.file,dwpt.file,psl.file,huss.file,wetbulb.file,tmp.dir,offset)
 

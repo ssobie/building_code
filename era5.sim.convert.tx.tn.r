@@ -24,9 +24,10 @@ tasmin.alt.file <- 'alt_tasmin_QDM_day_ERA5_BC_19800101-20181231.nc'
 for (file in file.list) {
   file.copy(from=paste0(read.dir,file),to=tmp.dir,overwrite=TRUE)
 }
-file.copy(from=paste0(tmp.dir,file.list$tasmax),to=paste0(tmp.dir,tasmax.alt.file),overwrite=TRUE)
-file.copy(from=paste0(tmp.dir,file.list$tasmin),to=paste0(tmp.dir,tasmin.alt.file),overwrite=TRUE)
-
+file.copy(from="/storage/data/climate/downscale/BCCAQ2+PRISM/ERA5/concat/tasmax_day_fine_ERA5_BC_19800101-20181231.nc",
+          to=paste0(tmp.dir,tasmax.alt.file),overwrite=TRUE)
+file.copy(from="/storage/data/climate/downscale/BCCAQ2+PRISM/ERA5/concat/tasmin_day_fine_ERA5_BC_19800101-20181231.nc",
+          to=paste0(tmp.dir,tasmin.alt.file),overwrite=TRUE)
 
 tas.nc <- nc_open(paste0(tmp.dir,file.list$tas))
 tasrange.nc <- nc_open(paste0(tmp.dir,file.list$tasrange)) 
